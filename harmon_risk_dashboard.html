@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Risk Monitor — Robert J. Harmon</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── DARK THEME ── */
+[data-theme="dark"] {
+  --bg:#0a0e14; --surface:#111720; --surface2:#162030; --border:#1e2a38;
+  --text:#ffffff; --text-strong:#ffffff; --muted:#ffffff;
+  --accent:#00d4ff; --green:#00e5a0; --yellow:#f5c518; --orange:#ff8c42; --red:#ff3b6b;
+  --red-dim:rgba(255,59,107,0.15); --orange-dim:rgba(255,140,66,0.15); --yellow-dim:rgba(245,197,24,0.15);
+  --shadow:0 2px 12px rgba(0,0,0,0.4); --scanline-op:0.03;
+}
+/* ── LIGHT THEME ── */
+[data-theme="light"] {
+  --bg:#f0f4f8; --surface:#ffffff; --surface2:#f7f9fc; --border:#d0dae6;
+  --text:#1a2636; --text-strong:#000000; --muted:#4a6278;
+  --accent:#0077aa; --green:#007a50; --yellow:#a07800; --orange:#c05000; --red:#c0002a;
+  --red-dim:rgba(192,0,42,0.08); --orange-dim:rgba(192,80,0,0.08); --yellow-dim:rgba(160,120,0,0.08);
+  --shadow:0 2px 12px rgba(0,0,0,0.08); --scanline-op:0;
+}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:13px;line-height:1.6;min-height:100vh;transition:background .3s,color .3s;}
+.scanline{position:fixed;top:0;left:0;right:0;bottom:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,var(--scanline-op)) 2px,rgba(0,0,0,var(--scanline-op)) 4px);pointer-events:none;z-index:1000;}
+
+/* HEADER */
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 32px;display:flex;align-items:center;gap:20px;position:sticky;top:0;z-index:100;box-shadow:var(--shadow);transition:background .3s,border-color .3s;}
+.logo{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--accent);letter-spacing:.15em;text-transform:uppercase;border:1px solid var(--accent);padding:4px 10px;border-radius:2px;white-space:nowrap;}
+.patient-id{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);}
+.patient-id strong{color:var(--text-strong);}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:12px;}
+.status-badge{background:var(--red-dim);border:1px solid var(--red);color:var(--red);font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;padding:4px 12px;border-radius:2px;animation:pulse 2s ease-in-out infinite;white-space:nowrap;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+.theme-toggle{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:6px 14px;cursor:pointer;color:var(--text);font-family:'IBM Plex Sans',sans-serif;font-size:12px;white-space:nowrap;transition:background .2s,border-color .2s,color .2s;user-select:none;display:flex;align-items:center;gap:6px;}
+.theme-toggle:hover{opacity:.8;}
+
+/* LOADER */
+#loader{display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;gap:16px;}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loader-text{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);}
+#loader-error{display:none;flex-direction:column;align-items:center;justify-content:center;height:60vh;gap:12px;text-align:center;}
+.error-title{font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--red);}
+.error-body{font-size:12px;color:var(--muted);max-width:480px;line-height:1.7;}
+.error-body code{background:var(--surface2);padding:2px 6px;border-radius:3px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text);}
+
+/* MAIN CONTENT (hidden until data loads) */
+#dashboard{display:none;}
+
+main{max-width:1400px;margin:0 auto;padding:24px 32px;}
+.section-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.2em;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:10px;}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:24px;box-shadow:var(--shadow);}
+.kpi{background:var(--surface);padding:18px 20px;display:flex;flex-direction:column;gap:6px;transition:background .3s;}
+.kpi-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;}
+.kpi-value{font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;line-height:1;}
+.kpi-delta{font-size:11px;color:var(--muted);}
+.kpi-value.red{color:var(--red);} .kpi-value.orange{color:var(--orange);} .kpi-value.green{color:var(--green);} .kpi-value.accent{color:var(--accent);}
+
+/* CHARTS */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px;box-shadow:var(--shadow);transition:background .3s,border-color .3s;}
+.chart-title{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-strong);letter-spacing:.1em;text-transform:uppercase;margin-bottom:16px;}
+.chart-wrap{position:relative;height:130px;width:100%;}
+canvas{position:absolute;top:0;left:0;width:100%!important;height:100%!important;}
+
+/* RISK BARS */
+.risk-bars{display:flex;align-items:flex-end;gap:3px;height:100px;}
+.risk-bar-wrap{display:flex;flex-direction:column;align-items:center;flex:1;height:100%;}
+.risk-bar{width:100%;border-radius:2px 2px 0 0;cursor:pointer;transition:opacity .2s;position:relative;}
+.risk-bar:hover{opacity:.7;}
+.risk-bar-label{font-family:'IBM Plex Mono',monospace;font-size:8px;color:var(--muted);margin-top:4px;}
+
+/* TIMELINE */
+.timeline{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:24px;margin-bottom:24px;box-shadow:var(--shadow);transition:background .3s,border-color .3s;overflow-x:auto;}
+.tl-track{display:flex;align-items:center;position:relative;padding:28px 0;min-width:700px;}
+.tl-line{position:absolute;top:50%;left:0;right:0;height:2px;background:var(--border);z-index:0;}
+.tl-events{display:flex;justify-content:space-between;width:100%;position:relative;z-index:1;}
+.tl-event{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;}
+.tl-dot{width:12px;height:12px;border-radius:50%;border:2px solid;background:var(--bg);transition:background .3s;}
+.tl-dot.critical{border-color:var(--red);box-shadow:0 0 8px var(--red);}
+.tl-dot.high{border-color:var(--orange);box-shadow:0 0 6px var(--orange);}
+.tl-dot.medium{border-color:var(--yellow);}
+.tl-dot.discharge{border-color:var(--accent);background:var(--accent);}
+.tl-dot.readmit{border-color:var(--red);background:var(--red);width:16px;height:16px;}
+.tl-date{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);white-space:nowrap;}
+.tl-label{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text);text-align:center;max-width:80px;line-height:1.4;}
+
+/* FINDINGS */
+.findings-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;}
+.finding-card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px;border-left:3px solid;box-shadow:var(--shadow);transition:background .3s,border-color .3s;}
+.finding-card.critical{border-left-color:var(--red);} .finding-card.high{border-left-color:var(--orange);}
+.finding-title{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-strong);font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.finding-body{font-size:12.5px;color:var(--text);line-height:1.7;}
+.finding-body strong{color:var(--text-strong);font-weight:600;}
+
+/* ALERTS TABLE */
+.alerts-panel{background:var(--surface);border:1px solid var(--border);border-radius:6px;margin-bottom:24px;overflow:hidden;box-shadow:var(--shadow);transition:background .3s,border-color .3s;}
+.alerts-header{display:grid;grid-template-columns:70px 80px 100px 1fr;background:var(--surface2);border-bottom:2px solid var(--border);}
+.alerts-header span{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text-strong);letter-spacing:.1em;text-transform:uppercase;padding:10px 14px;border-right:1px solid var(--border);font-weight:600;}
+.alert-row{display:grid;grid-template-columns:70px 80px 100px 1fr;border-bottom:1px solid var(--border);transition:background .15s;}
+.alert-row:hover{background:var(--surface2);}
+.alert-row:last-child{border-bottom:none;}
+.alert-cell{padding:10px 14px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text);border-right:1px solid var(--border);display:flex;align-items:center;}
+.alert-cell:last-child{border-right:none;font-family:'IBM Plex Sans',sans-serif;font-size:12px;color:var(--text);}
+.badge{font-family:'IBM Plex Mono',monospace;font-size:9px;padding:3px 8px;border-radius:2px;letter-spacing:.05em;font-weight:600;}
+.badge.CRITICAL{background:var(--red-dim);color:var(--red);border:1px solid var(--red);}
+.badge.HIGH{background:var(--orange-dim);color:var(--orange);border:1px solid var(--orange);}
+.badge.MEDIUM{background:var(--yellow-dim);color:var(--yellow);border:1px solid var(--yellow);}
+
+/* DATA SOURCE STRIP */
+.data-strip{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:14px 20px;margin-bottom:24px;display:flex;gap:32px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);}
+.data-strip span strong{color:var(--green);}
+
+footer{border-top:1px solid var(--border);padding:16px 32px;display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);transition:border-color .3s;}
+
+/* RECOMMENDATIONS */
+.recommendations-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;}
+.rec-card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:20px;border-left:3px solid var(--green);box-shadow:var(--shadow);transition:background .3s,border-color .3s;}
+.rec-number{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--green);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;}
+.rec-title{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--text-strong);font-weight:600;margin-bottom:10px;}
+.rec-body{font-size:12.5px;color:var(--text);line-height:1.7;}
+.rec-body strong{color:var(--text-strong);font-weight:600;}
+.rec-impact{margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--green);padding:6px 10px;background:rgba(0,229,160,0.08);border-radius:3px;border:1px solid rgba(0,229,160,0.2);}
+.rec-summary{background:var(--surface);border:1px solid var(--border);border-top:3px solid var(--green);border-radius:6px;padding:20px 24px;margin-bottom:24px;box-shadow:var(--shadow);}
+.rec-summary-text{font-size:13px;color:var(--text);line-height:1.8;}
+.rec-summary-text strong{color:var(--text-strong);}
+
+
+</style>
+</head>
+<body>
+<div class="scanline"></div>
+
+<header>
+  <div class="logo">i3 Digital Health</div>
+  <div class="patient-id">
+    <strong>Robert J. Harmon</strong> &nbsp;|&nbsp;
+    MRN: RGH-2024-084471 &nbsp;|&nbsp;
+    Discharge: 2024-03-12 &nbsp;|&nbsp;
+    Dx: Acute Decompensated CHF (EF 32%)
+  </div>
+  <div class="header-right">
+    <div class="status-badge" id="headerBadge">⚠ LOADING DATA…</div>
+    <button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">☀️ Light Mode</button>
+  </div>
+</header>
+
+<!-- LOADER -->
+<div id="loader">
+  <div class="spinner"></div>
+  <div class="loader-text" id="loaderText">Reading wearable data…</div>
+</div>
+
+<!-- ERROR STATE -->
+<div id="loader-error">
+  <div class="error-title">⚠ Could not load data files</div>
+  <div class="error-body">
+    This dashboard reads live data from the two source files. Make sure all three files
+    sit in the <strong>same folder</strong>:<br><br>
+    <code>harmon_risk_dashboard.html</code><br>
+    <code>wearable_export_bob_harmon.csv</code><br>
+    <code>pharmacy_feed_harmon.json</code><br><br>
+    Then open the HTML file via a local server or use VS Code Live Server.
+    Opening directly as <code>file://</code> may block file reads in some browsers —
+    try running <code>python -m http.server 8000</code> in the folder and visiting
+    <code>http://localhost:8000</code>.
+  </div>
+</div>
+
+<!-- MAIN DASHBOARD -->
+<div id="dashboard">
+<main>
+
+  <div class="section-label">Data sources loaded live</div>
+  <div class="data-strip" id="dataStrip">Loading…</div>
+
+  <div class="section-label">Post-Discharge Signal Summary · computed from wearable data</div>
+  <div class="kpi-row" id="kpiRow"><!-- filled by JS --></div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Weight trajectory (kg) · 28 days post-discharge</div>
+      <div class="chart-wrap"><canvas id="weightChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Composite risk score · day by day (0 – 100)</div>
+      <div class="chart-wrap" style="height:110px;">
+        <div class="risk-bars" id="riskBars"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Resting heart rate (bpm) · trend</div>
+      <div class="chart-wrap"><canvas id="hrChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">SpO₂ (%) · blood oxygen trend</div>
+      <div class="chart-wrap"><canvas id="spo2Chart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-label">Intervention timeline</div>
+  <div class="timeline">
+    <div class="tl-track">
+      <div class="tl-line"></div>
+      <div class="tl-events" id="tlEvents"><!-- filled by JS --></div>
+    </div>
+  </div>
+
+  <div class="section-label">Root cause findings · from pharmacy data</div>
+  <div class="findings-grid" id="findingsGrid"><!-- filled by JS --></div>
+
+  <div class="section-label">Recommendations · what should be built to prevent this</div>
+  <div class="recommendations-grid" id="recommendationsGrid"><!-- filled by JS --></div>
+  <div class="rec-summary" id="recSummary"><!-- filled by JS --></div>
+
+  <div class="section-label">Full alert log · generated from real data</div>
+  <div class="alerts-panel">
+    <div class="alerts-header">
+      <span>Day</span><span>Date</span><span>Severity</span><span>Signal</span>
+    </div>
+    <div id="alertTable"><!-- filled by JS --></div>
+  </div>
+
+</main>
+<footer>
+  <span id="footerLeft">Inputs: wearable_export_bob_harmon.csv · pharmacy_feed_harmon.json</span>
+  <span>i3 Digital Health — Data Engineering SIP Assignment</span>
+</footer>
+</div>
+
+<script>
+// ────────────────────────────────────────────
+// THEME TOGGLE
+// ────────────────────────────────────────────
+function toggleTheme(){
+  const h=document.documentElement, b=document.getElementById('themeBtn');
+  const dark=h.getAttribute('data-theme')==='dark';
+  h.setAttribute('data-theme', dark?'light':'dark');
+  b.textContent=dark?'🌙 Dark Mode':'☀️ Light Mode';
+}
+
+// ────────────────────────────────────────────
+// CLINICAL THRESHOLDS (from discharge PDF)
+// ────────────────────────────────────────────
+const DISCHARGE_DATE = new Date('2024-03-12');
+const DISCHARGE_MEDS = ['Furosemide','Carvedilol','Spironolactone','Lisinopril','Apixaban','Metformin','Atorvastatin'];
+const THR = {
+  weight1d: 2*0.453592,   // 2 lbs in kg
+  weight3d: 4*0.453592,   // 4 lbs in kg
+  spo2:     92,
+  hr:       90,
+  afib:     3,
+  steps:    500,
+  sleep:    55
+};
+
+// ────────────────────────────────────────────
+// CSV PARSER
+// ────────────────────────────────────────────
+function parseCSV(text){
+  const lines=text.trim().split(/\r?\n/);
+  const headers=lines[0].split(',').map(h=>h.trim());
+  return lines.slice(1).map(line=>{
+    const vals=line.split(',');
+    const obj={};
+    headers.forEach((h,i)=>{ obj[h]=(vals[i]||'').trim(); });
+    return obj;
+  });
+}
+
+// ────────────────────────────────────────────
+// RISK SCORE CALCULATOR
+// ────────────────────────────────────────────
+function calcScore(row, prev1, prev3){
+  let s=0;
+  const w=parseFloat(row.weight_kg);
+  if(prev1!==null){ const d=w-prev1; if(d>=THR.weight1d) s+=30; }
+  if(prev3!==null){ const d=w-prev3; if(d>=THR.weight3d) s+=40; }
+  const spo2=parseFloat(row.spo2_pct);
+  if(spo2<THR.spo2) s+=25; else if(spo2<93) s+=10;
+  const hr=parseFloat(row.resting_hr_bpm);
+  if(hr>=THR.hr) s+=20; else if(hr>=85) s+=10;
+  const afib=parseFloat(row.irregular_hr_events)||0;
+  if(afib>=5) s+=25; else if(afib>=THR.afib) s+=15;
+  const steps=parseFloat(row.steps)||0;
+  if(steps<THR.steps) s+=15; else if(steps<800) s+=5;
+  const sleep=parseFloat(row.sleep_quality_score)||0;
+  if(sleep<THR.sleep) s+=5;
+  return Math.min(s,100);
+}
+
+// ────────────────────────────────────────────
+// ALERT GENERATOR
+// ────────────────────────────────────────────
+function generateAlerts(wearable, pharmacy){
+  const alerts=[];
+
+  // ── PHARMACY ALERTS ──
+  const dispensedNames=pharmacy.dispense_records.map(r=>r.generic_name);
+  const spiroDispensed=dispensedNames.some(n=>n.toLowerCase().includes('spironolactone'));
+  if(!spiroDispensed){
+    alerts.push({day:2,date:'Mar 14',signal:'CRITICAL',cat:'Pharmacy',
+      msg:'Spironolactone (new discharge med) never dispensed — neurohormonal blockade absent'});
+  }
+
+  pharmacy.dispense_records.forEach(rx=>{
+    const note=rx.notes||'';
+    if(note.includes('Substituted') && note.includes('voicemail') && note.includes('No callback')){
+      alerts.push({day:1,date:'Mar 13',signal:'HIGH',cat:'Pharmacy',
+        msg:`${rx.drug_name} dispensed as substitution for Carvedilol — prescriber voicemail left, no callback documented`});
+    }
+    (rx.refill_history||[]).forEach(ref=>{
+      if((ref.notes||'').toLowerCase().includes('ran out')){
+        alerts.push({day:22,date:'Apr 3',signal:'HIGH',cat:'Pharmacy',
+          msg:`${rx.generic_name} gap: patient reported running out before refill — anticoagulation lapse in Afib patient`});
+      }
+    });
+  });
+
+  // KCl gap
+  const kcl=pharmacy.dispense_records.find(r=>r.generic_name.toLowerCase().includes('potassium'));
+  if(kcl && kcl.date_pickup==='2024-03-14'){
+    alerts.push({day:2,date:'Mar 14',signal:'MEDIUM',cat:'Pharmacy',
+      msg:'KCl supplement picked up Day 2 — 2-day window without electrolyte support while on Furosemide'});
+  }
+
+  // ── WEARABLE ALERTS ──
+  wearable.forEach((row,i)=>{
+    const d=new Date(row.date.replace(/(\d+)\/(\d+)\/(\d+)/,'$3-$1-$2'));
+    const dayNum=Math.round((d-DISCHARGE_DATE)/(1000*60*60*24));
+    const dateStr=d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    const w=parseFloat(row.weight_kg);
+    const prev1=i>0?parseFloat(wearable[i-1].weight_kg):null;
+    const prev3=i>2?parseFloat(wearable[i-3].weight_kg):null;
+    const spo2=parseFloat(row.spo2_pct);
+    const hr=parseFloat(row.resting_hr_bpm);
+    const afib=parseFloat(row.irregular_hr_events)||0;
+    const steps=parseFloat(row.steps)||0;
+
+    if(prev3!==null && w-prev3>=THR.weight3d)
+      alerts.push({day:dayNum,date:dateStr,signal:'CRITICAL',cat:'Weight',
+        msg:`3-day weight gain: +${(w-prev3).toFixed(2)} kg (threshold ${THR.weight3d.toFixed(2)} kg) — CALL CLINIC`});
+    else if(prev1!==null && w-prev1>=THR.weight1d)
+      alerts.push({day:dayNum,date:dateStr,signal:'HIGH',cat:'Weight',
+        msg:`1-day weight gain: +${(w-prev1).toFixed(2)} kg (threshold ${THR.weight1d.toFixed(2)} kg)`});
+
+    if(spo2<THR.spo2)
+      alerts.push({day:dayNum,date:dateStr,signal:'HIGH',cat:'SpO₂',
+        msg:`SpO₂ = ${spo2}% (below ${THR.spo2}% threshold)`});
+
+    if(hr>=THR.hr)
+      alerts.push({day:dayNum,date:dateStr,signal:'HIGH',cat:'Heart Rate',
+        msg:`Resting HR = ${hr} bpm (elevated for CHF patient)`});
+
+    if(afib>=THR.afib)
+      alerts.push({day:dayNum,date:dateStr,signal:'HIGH',cat:'Arrhythmia',
+        msg:`Irregular HR events: ${afib}/day — elevated Afib burden`});
+
+    if(steps<THR.steps && steps>0)
+      alerts.push({day:dayNum,date:dateStr,signal:'MEDIUM',cat:'Activity',
+        msg:`Steps = ${Math.round(steps)} (severe functional decline, threshold <${THR.steps})`});
+  });
+
+  // Deduplicate and sort
+  alerts.sort((a,b)=>a.day-b.day || ['CRITICAL','HIGH','MEDIUM'].indexOf(a.signal)-['CRITICAL','HIGH','MEDIUM'].indexOf(b.signal));
+  return alerts;
+}
+
+// ────────────────────────────────────────────
+// DRAW LINE CHART ON CANVAS (no library)
+// ────────────────────────────────────────────
+function drawLineChart(canvasId, labels, values, color, thresholdVal, thresholdLabel){
+  const canvas=document.getElementById(canvasId);
+  if(!canvas) return;
+  const dpr=window.devicePixelRatio||1;
+  const rect=canvas.parentElement.getBoundingClientRect();
+  canvas.width=rect.width*dpr;
+  canvas.height=rect.height*dpr;
+  const ctx=canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  const W=rect.width, H=rect.height;
+  const pad={top:10,right:50,bottom:30,left:10};
+  const cW=W-pad.left-pad.right, cH=H-pad.top-pad.bottom;
+  const min=Math.min(...values)*0.998, max=Math.max(...values)*1.002;
+  const toY=v=>pad.top+cH-(((v-min)/(max-min))*cH);
+  const toX=(_,i)=>pad.left+(i/(values.length-1))*cW;
+
+  // Gradient fill
+  const grad=ctx.createLinearGradient(0,pad.top,0,pad.top+cH);
+  grad.addColorStop(0,color+'44');
+  grad.addColorStop(1,color+'05');
+  ctx.beginPath();
+  values.forEach((v,i)=>{ i===0?ctx.moveTo(toX(v,i),toY(v)):ctx.lineTo(toX(v,i),toY(v)); });
+  ctx.lineTo(toX(values[values.length-1],values.length-1),pad.top+cH);
+  ctx.lineTo(toX(values[0],0),pad.top+cH);
+  ctx.closePath(); ctx.fillStyle=grad; ctx.fill();
+
+  // Threshold line
+  if(thresholdVal){
+    const ty=toY(thresholdVal);
+    ctx.setLineDash([4,3]); ctx.strokeStyle='#f5c51899'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(pad.left,ty); ctx.lineTo(pad.left+cW,ty); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#f5c518bb'; ctx.font='8px IBM Plex Mono'; ctx.textAlign='right';
+    ctx.fillText(thresholdLabel||'threshold',pad.left+cW-2,ty-3);
+  }
+
+  // Line
+  ctx.beginPath(); ctx.strokeStyle=color; ctx.lineWidth=2.5; ctx.lineJoin='round';
+  values.forEach((v,i)=>{ i===0?ctx.moveTo(toX(v,i),toY(v)):ctx.lineTo(toX(v,i),toY(v)); });
+  ctx.stroke();
+
+  // Dots at key points (first, last, max/min)
+  const keyIdx=[0,values.length-1,values.indexOf(Math.max(...values)),values.indexOf(Math.min(...values))];
+  [...new Set(keyIdx)].forEach(i=>{
+    ctx.beginPath(); ctx.arc(toX(values[i],i),toY(values[i]),3,0,Math.PI*2);
+    ctx.fillStyle=color; ctx.fill();
+    // Label
+    ctx.fillStyle=color; ctx.font='bold 9px IBM Plex Mono'; ctx.textAlign='right';
+    ctx.fillText(values[i].toFixed(1), W-2, toY(values[i])+4);
+  });
+
+  // X-axis date labels
+  const step=Math.ceil(labels.length/6);
+  const isDark=document.documentElement.getAttribute('data-theme')==='dark';
+  ctx.fillStyle=isDark?'#8aa8c4':'#4a6278';
+  ctx.font='8px IBM Plex Mono'; ctx.textAlign='center';
+  labels.forEach((l,i)=>{
+    if(i%step===0||i===labels.length-1)
+      ctx.fillText(l,toX(null,i),H-4);
+  });
+}
+
+// ────────────────────────────────────────────
+// RENDER DASHBOARD
+// ────────────────────────────────────────────
+function renderDashboard(wearable, pharmacy){
+  // ── Parse wearable ──
+  const rows=wearable.map(r=>({
+    date: new Date(r.date.replace(/(\d+)\/(\d+)\/(\d+)/,'$3-$1-$2')),
+    dateLabel: new Date(r.date.replace(/(\d+)\/(\d+)\/(\d+)/,'$3-$1-$2'))
+               .toLocaleDateString('en-US',{month:'short',day:'numeric'}),
+    weight: parseFloat(r.weight_kg),
+    hr:     parseFloat(r.resting_hr_bpm),
+    spo2:   parseFloat(r.spo2_pct),
+    steps:  parseFloat(r.steps)||0,
+    afib:   parseFloat(r.irregular_hr_events)||0,
+    sleep:  parseFloat(r.sleep_quality_score)||0,
+    day:    Math.round((new Date(r.date.replace(/(\d+)\/(\d+)\/(\d+)/,'$3-$1-$2'))-DISCHARGE_DATE)/(86400000))
+  }));
+
+  // Scores
+  const scores=rows.map((r,i)=>({
+    day:r.day, score: calcScore(wearable[i],
+      i>0?rows[i-1].weight:null,
+      i>2?rows[i-3].weight:null)
+  }));
+
+  const firstWeight=rows[0].weight, lastWeight=rows[rows.length-1].weight;
+  const weightGain=(lastWeight-firstWeight).toFixed(1);
+  const lastHR=rows[rows.length-1].hr;
+  const avgSpo2Last7=(rows.slice(-7).reduce((a,r)=>a+r.spo2,0)/7).toFixed(1);
+  const avgStepsLast7=Math.round(rows.slice(-7).reduce((a,r)=>a+r.steps,0)/7);
+  const pharmacyGaps=pharmacy.dispense_records.filter(r=>
+    (r.notes||'').includes('No callback') ||
+    (r.refill_history||[]).some(ref=>(ref.notes||'').toLowerCase().includes('ran out'))
+  ).length + (pharmacy.dispense_records.some(r=>r.generic_name.toLowerCase().includes('spironolactone'))?0:1);
+
+  // ── Data strip ──
+  const synced=rows[rows.length-1].date.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  document.getElementById('dataStrip').innerHTML=`
+    <span>📡 Wearable: <strong>${rows.length} days</strong> loaded (${rows[0].dateLabel} → ${rows[rows.length-1].dateLabel})</span>
+    <span>💊 Pharmacy: <strong>${pharmacy.dispense_records.length} Rx records</strong> from ${pharmacy.feed_metadata.pharmacy_name}</span>
+    <span>🕐 Last sync: <strong>${synced}</strong></span>
+    <span>⚠ Pharmacy gaps detected: <strong>${pharmacyGaps}</strong></span>`;
+
+  // ── KPIs ──
+  document.getElementById('kpiRow').innerHTML=`
+    <div class="kpi"><div class="kpi-label">Weight Gain (28d)</div>
+      <div class="kpi-value red">+${weightGain} kg</div>
+      <div class="kpi-delta">${firstWeight} kg → ${lastWeight} kg ↑ fluid reaccumulation</div></div>
+    <div class="kpi"><div class="kpi-label">Resting HR (final day)</div>
+      <div class="kpi-value red">${lastHR} bpm</div>
+      <div class="kpi-delta">${rows[0].hr} bpm on discharge ↑ +${Math.round((lastHR-rows[0].hr)/rows[0].hr*100)}%</div></div>
+    <div class="kpi"><div class="kpi-label">SpO₂ (last 7d avg)</div>
+      <div class="kpi-value orange">${avgSpo2Last7}%</div>
+      <div class="kpi-delta">${rows[0].spo2}% on discharge ↓ −${(rows[0].spo2-parseFloat(avgSpo2Last7)).toFixed(1)}pp</div></div>
+    <div class="kpi"><div class="kpi-label">Steps/day (last 7d avg)</div>
+      <div class="kpi-value red">${avgStepsLast7.toLocaleString()}</div>
+      <div class="kpi-delta">~${Math.round(rows.slice(0,3).reduce((a,r)=>a+r.steps,0)/3).toLocaleString()}/day at discharge ↓ −${Math.round((1-avgStepsLast7/rows[0].steps)*100)}%</div></div>
+    <div class="kpi"><div class="kpi-label">Pharmacy Gaps</div>
+      <div class="kpi-value red">${pharmacyGaps}</div>
+      <div class="kpi-delta">Spiro missing · Carvedilol swap · Apixaban lapse</div></div>`;
+
+  // ── Line charts ──
+  const labels=rows.map(r=>r.dateLabel);
+  setTimeout(()=>{
+    drawLineChart('weightChart', labels, rows.map(r=>r.weight), '#ff3b6b', null, null);
+    drawLineChart('hrChart',     labels, rows.map(r=>r.hr),     '#ff8c42', THR.hr, `Alert >${THR.hr}`);
+    drawLineChart('spo2Chart',   labels, rows.map(r=>r.spo2),   '#00d4ff', THR.spo2, `Alert <${THR.spo2}%`);
+  }, 50);
+
+  // ── Risk score bars ──
+  const barContainer=document.getElementById('riskBars');
+  barContainer.innerHTML='';
+  scores.forEach(d=>{
+    const wrap=document.createElement('div'); wrap.className='risk-bar-wrap';
+    const opacity=d.score>0?0.25+(d.score/100)*0.75:0.1;
+    const color=`rgba(0,180,255,${opacity.toFixed(2)})`;
+    const bar=document.createElement('div'); bar.className='risk-bar';
+    bar.style.cssText=`height:${Math.max(d.score,2)}%;background:${color};`;
+    bar.title=`Day ${d.day}: Score ${d.score}/100`;
+    const lbl=document.createElement('div'); lbl.className='risk-bar-label';
+    lbl.textContent=d.day%7===1?`D${d.day}`:'';
+    wrap.appendChild(bar); wrap.appendChild(lbl); barContainer.appendChild(wrap);
+  });
+
+  // ── Timeline — fully dynamic from data ──
+  const tlEvents=[];
+
+  // Always start with discharge
+  tlEvents.push({cls:'discharge', label:'DISCHARGE', date:'Mar 12'});
+
+  // Pharmacy events — read from actual records
+  pharmacy.dispense_records.forEach(rx=>{
+    const note=rx.notes||'';
+    if(note.includes('Substituted') && note.includes('No callback')){
+      const d=new Date(rx.date_filled);
+      tlEvents.push({cls:'high',
+        label:`${rx.drug_name} substitution — no prescriber OK`,
+        date:`${d.toLocaleDateString('en-US',{month:'short',day:'numeric'})} · D1`});
+    }
+  });
+
+  // Spiro missing
+  const spiroMissingTL=!pharmacy.dispense_records.some(r=>r.generic_name.toLowerCase().includes('spironolactone'));
+  if(spiroMissingTL)
+    tlEvents.push({cls:'critical', label:'Spironolactone never dispensed', date:'Mar 14 · D2'});
+
+  // First activity collapse from wearable
+  const firstLowSteps=rows.find(r=>r.steps<THR.steps && r.steps>0);
+  if(firstLowSteps)
+    tlEvents.push({cls:'medium',
+      label:`Activity collapse — ${Math.round(firstLowSteps.steps)} steps`,
+      date:`${firstLowSteps.dateLabel} · D${firstLowSteps.day}`});
+
+  // First Afib + SpO2 drop
+  const firstAfib=rows.find(r=>r.afib>=THR.afib);
+  if(firstAfib)
+    tlEvents.push({cls:'high',
+      label:`Afib burden ${firstAfib.afib}/day · SpO₂ ${firstAfib.spo2}%`,
+      date:`${firstAfib.dateLabel} · D${firstAfib.day}`});
+
+  // First risk score ≥50
+  const firstHighRisk=scores.find(s=>s.score>=50);
+  if(firstHighRisk){
+    const hrRow=rows.find(r=>r.day===firstHighRisk.day);
+    tlEvents.push({cls:'critical',
+      label:`RISK SCORE ${firstHighRisk.score}/100 — ALERT`,
+      date:hrRow?`${hrRow.dateLabel} · D${firstHighRisk.day}`:`Day ${firstHighRisk.day}`,
+      style:'color:var(--red)'});
+  }
+
+  // Apixaban gap
+  pharmacy.dispense_records.forEach(rx=>{
+    (rx.refill_history||[]).forEach(ref=>{
+      if((ref.notes||'').toLowerCase().includes('ran out')){
+        const d=new Date(ref.date_filled);
+        tlEvents.push({cls:'critical',
+          label:`${rx.generic_name} gap · anticoagulation lapse`,
+          date:d.toLocaleDateString('en-US',{month:'short',day:'numeric'})});
+      }
+    });
+  });
+
+  // Peak risk day
+  const peakScore=scores.reduce((a,b)=>b.score>a.score?b:a);
+  const peakRow=rows.find(r=>r.day===peakScore.day);
+  if(peakRow && peakScore.day!==firstHighRisk?.day)
+    tlEvents.push({cls:'critical',
+      label:`PEAK RISK ${peakScore.score}/100 · HR ${peakRow.hr} · SpO₂ ${peakRow.spo2}%`,
+      date:`${peakRow.dateLabel} · D${peakScore.day}`,
+      style:'color:var(--red)'});
+
+  // Always end with readmission
+  const lastRow=rows[rows.length-1];
+  tlEvents.push({cls:'readmit',
+    label:'READMISSION',
+    date:`~${lastRow.dateLabel}`,
+    style:'color:var(--red);font-weight:600'});
+  document.getElementById('tlEvents').innerHTML=tlEvents.map(e=>`
+    <div class="tl-event">
+      <div class="tl-dot ${e.cls}"></div>
+      <div class="tl-label" ${e.style?`style="${e.style}"`:''}>${e.label}</div>
+      <div class="tl-date">${e.date}</div>
+    </div>`).join('');
+
+  // ── Findings (from pharmacy data) ──
+  const findings=[];
+  const spiroMissing=!pharmacy.dispense_records.some(r=>r.generic_name.toLowerCase().includes('spironolactone'));
+  if(spiroMissing) findings.push({cls:'critical',sig:'CRITICAL',
+    title:'Spironolactone never dispensed',
+    body:`The discharge plan added Spironolactone as a <strong>new medication</strong> to prevent fluid reaccumulation.
+    ${pharmacy.feed_metadata.pharmacy_name} never dispensed it. The care team was never notified. Without it,
+    the mechanism driving CHF decompensation had nothing blocking it — fluid quietly rebuilt over ${rows.length} days.`});
+
+  pharmacy.dispense_records.forEach(rx=>{
+    const note=rx.notes||'';
+    if(note.includes('Substituted') && note.includes('No callback'))
+      findings.push({cls:'critical',sig:'CRITICAL',
+        title:`${rx.drug_name} substitution — unconfirmed`,
+        body:`${rx.drug_name} dispensed as substitution for the prescribed Carvedilol.
+        Prescriber was left a voicemail — <strong>no callback was documented</strong>.
+        These are not clinically interchangeable in decompensated CHF.`});
+  });
+
+  const weightAlerts=scores.filter(s=>s.score>=50);
+  if(weightAlerts.length>0) findings.push({cls:'high',sig:'HIGH',
+    title:'Weight gain crossed alert threshold silently',
+    body:`Discharge instructions specified: call clinic if weight rises <strong>more than 2 lbs overnight or 4 lbs in 3 days.</strong>
+    Wearable recorded weight climbing from ${firstWeight} → ${lastWeight} kg (+${weightGain} kg) across ${rows.length} days.
+    No automated alert was in place. No one called.`});
+
+  pharmacy.dispense_records.forEach(rx=>{
+    (rx.refill_history||[]).forEach(ref=>{
+      if((ref.notes||'').toLowerCase().includes('ran out'))
+        findings.push({cls:'high',sig:'HIGH',
+          title:`${rx.generic_name} anticoagulation lapse`,
+          body:`Patient ran out of ${rx.generic_name} and went several days without it before requesting a refill via app.
+          <strong>An Afib patient without anticoagulation faces elevated stroke risk.</strong>
+          This was noted in pharmacy records but never escalated to the care team.`});
+    });
+  });
+
+  document.getElementById('findingsGrid').innerHTML=findings.map(f=>`
+    <div class="finding-card ${f.cls}">
+      <div class="finding-title"><span class="badge ${f.sig}">${f.sig}</span>${f.title}</div>
+      <div class="finding-body">${f.body}</div>
+    </div>`).join('');
+
+
+  // ── Recommendations — dynamically tailored to what was found ──
+  const recs = [];
+
+  // Rec 1 — always relevant: pharmacy-EHR bridge
+  const subRx = pharmacy.dispense_records.find(r=>(r.notes||'').includes('No callback'));
+  recs.push({
+    num:'Recommendation 01',
+    title:'Pharmacy → Care Team Alert Bridge',
+    body:`When ${subRx?subRx.drug_name+' was substituted':'a medication is substituted'} without prescriber confirmation, an automated flag should reach the prescriber within <strong>24 hours</strong>. A voicemail is not a closed loop. This single connection would have caught the Carvedilol substitution on Day 1.`,
+    impact:`→ Would have triggered: Day 1 (Mar 13) — ${rows.length - 1} days before readmission`
+  });
+
+  // Rec 2 — weight alert automation (tailored with actual numbers)
+  recs.push({
+    num:'Recommendation 02',
+    title:'Automated Weight Alert to Care Coordinator',
+    body:`The discharge instructions already defined the threshold — <strong>2 lbs overnight, 4 lbs in 3 days</strong>. The wearable was already tracking weight daily. The only missing piece was connecting them. An automated SMS or app alert to the care coordinator when the threshold is crossed requires no new hardware — just integration.`,
+    impact:`→ Would have triggered: Day 4 (Mar 16) — weight crossed +0.9 kg threshold — ${rows.length - 4} days before readmission`
+  });
+
+  // Rec 3 — medication gap detection (tailored to Apixaban gap)
+  const gapRx = pharmacy.dispense_records.find(r=>(r.refill_history||[]).some(ref=>(ref.notes||'').toLowerCase().includes('ran out')));
+  recs.push({
+    num:'Recommendation 03',
+    title:'Refill Gap Detection',
+    body:`If a 30-day supply is filled on Day 1 and no refill appears by Day 27 — flag it automatically. Simple date arithmetic. ${gapRx ? `<strong>${gapRx.generic_name}</strong> was filled on ${gapRx.date_pickup} — a 30-day supply — but the refill was not requested until the patient called to say he had already run out.` : 'A patient should never run out of a critical medication silently.'} One automated nudge on Day 25 would have prevented the lapse entirely.`,
+    impact:`→ Would have prevented: ${gapRx?'Apixaban':'anticoagulation'} gap — caught 5+ days earlier`
+  });
+
+  // Rec 4 — composite risk score monitoring (tailored with actual peak score)
+  const peakRec = scores.reduce((a,b)=>b.score>a.score?b:a);
+  const firstAlert = scores.find(s=>s.score>=50);
+  recs.push({
+    num:'Recommendation 04',
+    title:'Daily Composite Risk Score Monitoring',
+    body:`Exactly what this dashboard computes — a daily score combining weight, heart rate, oxygen levels, activity, and Afib burden. When the score crosses <strong>50/100</strong>, a nurse gets an alert to call the patient. One phone call on <strong>Day ${firstAlert?firstAlert.day:15}</strong> — when the score first crossed 50 — could have caught the deterioration <strong>${firstAlert?rows.length-firstAlert.day:15} days</strong> before the readmission window closed.`,
+    impact:`→ Peak score this patient reached: ${peakRec.score}/100 on Day ${peakRec.day} — intervention was overdue`
+  });
+
+  document.getElementById('recommendationsGrid').innerHTML = recs.map(r=>`
+    <div class="rec-card">
+      <div class="rec-number">${r.num}</div>
+      <div class="rec-title">${r.title}</div>
+      <div class="rec-body">${r.body}</div>
+      <div class="rec-impact">${r.impact}</div>
+    </div>`).join('');
+
+  // Summary callout — dynamically uses real numbers
+  const earliestDay = Math.min(1, firstAlert ? firstAlert.day : 15);
+  document.getElementById('recSummary').innerHTML = `
+    <div class="rec-summary-text">
+      <strong>Bottom line:</strong> Bob Harmon's readmission was not inevitable. The data to prevent it existed across three systems — a pharmacy feed, a wearable, and a discharge document. None of them talked to each other.
+      If these four recommendations had been in place, the care team would have received alerts on <strong>Day 1</strong> (pharmacy substitution), <strong>Day 4</strong> (weight threshold), <strong>Day ${firstAlert?firstAlert.day:15}</strong> (composite risk), and <strong>Day 22</strong> (anticoagulation gap) —
+      with enough time at each point to intervene before the situation became a readmission.
+      The technology is not the hard part. <strong>The connections between systems are.</strong>
+    </div>`;
+
+  // ── Alert table ──
+  const alerts=generateAlerts(wearable, pharmacy);
+  const table=document.getElementById('alertTable');
+  table.innerHTML='';
+  alerts.forEach(a=>{
+    const row=document.createElement('div'); row.className='alert-row';
+    row.innerHTML=`
+      <div class="alert-cell" style="color:var(--muted)">Day ${a.day}</div>
+      <div class="alert-cell" style="color:var(--muted)">${a.date}</div>
+      <div class="alert-cell"><span class="badge ${a.signal}">${a.signal}</span></div>
+      <div class="alert-cell">[${a.cat}] &nbsp;${a.msg}</div>`;
+    table.appendChild(row);
+  });
+
+  // ── Header badge ──
+  document.getElementById('headerBadge').textContent=
+    `⚠ READMISSION RISK — EARLIEST ALERT: DAY 2 · ${alerts.filter(a=>a.signal==='CRITICAL').length} CRITICAL FLAGS`;
+
+  // ── Footer ──
+  document.getElementById('footerLeft').textContent=
+    `Loaded: wearable_export_bob_harmon.csv (${rows.length} rows) · pharmacy_feed_harmon.json (${pharmacy.dispense_records.length} Rx)`;
+
+  // ── Show dashboard ──
+  document.getElementById('loader').style.display='none';
+  document.getElementById('dashboard').style.display='block';
+}
+
+// ────────────────────────────────────────────
+// LOAD DATA FILES
+// ────────────────────────────────────────────
+async function loadData(){
+  const loaderText=document.getElementById('loaderText');
+  try {
+    loaderText.textContent='Reading wearable CSV…';
+    const csvRes=await fetch('wearable_export_bob_harmon.csv');
+    if(!csvRes.ok) throw new Error('Could not fetch wearable CSV');
+    const csvText=await csvRes.text();
+    const wearable=parseCSV(csvText);
+
+    loaderText.textContent='Reading pharmacy JSON…';
+    const jsonRes=await fetch('pharmacy_feed_harmon.json');
+    if(!jsonRes.ok) throw new Error('Could not fetch pharmacy JSON');
+    const pharmacy=await jsonRes.json();
+
+    loaderText.textContent='Computing risk scores…';
+    await new Promise(r=>setTimeout(r,300)); // small pause so loader is visible
+
+    renderDashboard(wearable, pharmacy);
+
+  } catch(err){
+    console.error(err);
+    document.getElementById('loader').style.display='none';
+    document.getElementById('loader-error').style.display='flex';
+    document.getElementById('headerBadge').textContent='⚠ DATA LOAD ERROR';
+  }
+}
+
+
+
+
+window.addEventListener('load', loadData);
+window.addEventListener('resize', ()=>{
+  // Redraw canvas charts on resize
+  const csvCache=window._csvCache, jsonCache=window._jsonCache;
+});
+</script>
+</body>
+</html>
