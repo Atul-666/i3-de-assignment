@@ -1,0 +1,55 @@
+date,signal,category,message,day_post_discharge,priority
+2024-03-13,HIGH,Pharmacy,"Carvedilol substituted → Metoprolol Succinate ER 50mg; prescriber voicemail left, no callback confirmed",1,1
+2024-03-14,CRITICAL,Pharmacy,Spironolactone (new discharge med) never dispensed — neurohormonal blockade missing,2,0
+2024-03-14,MEDIUM,Pharmacy,KCl supplement picked up day 2 post-discharge — 2-day window without electrolyte supplementation while on Furosemide,2,2
+2024-03-18,MEDIUM,Activity,Steps = 446 (severe functional decline),6,2
+2024-03-20,HIGH,Arrhythmia,Irregular HR events: 3/day (Afib burden elevated),8,1
+2024-03-23,HIGH,SpO2,SpO2 = 91% (below 92%),11,1
+2024-03-24,HIGH,SpO2,SpO2 = 91% (below 92%),12,1
+2024-03-25,HIGH,SpO2,SpO2 = 89% (below 92%),13,1
+2024-03-26,HIGH,SpO2,SpO2 = 91% (below 92%),14,1
+2024-03-27,HIGH,SpO2,SpO2 = 91% (below 92%),15,1
+2024-03-27,HIGH,Arrhythmia,Irregular HR events: 5/day (Afib burden elevated),15,1
+2024-03-27,MEDIUM,Activity,Steps = 314 (severe functional decline),15,2
+2024-03-28,HIGH,SpO2,SpO2 = 90% (below 92%),16,1
+2024-03-28,HIGH,Arrhythmia,Irregular HR events: 9/day (Afib burden elevated),16,1
+2024-03-29,HIGH,SpO2,SpO2 = 91% (below 92%),17,1
+2024-03-29,HIGH,Arrhythmia,Irregular HR events: 3/day (Afib burden elevated),17,1
+2024-03-29,MEDIUM,Activity,Steps = 424 (severe functional decline),17,2
+2024-03-30,HIGH,Arrhythmia,Irregular HR events: 9/day (Afib burden elevated),18,1
+2024-03-30,HIGH,SpO2,SpO2 = 90% (below 92%),18,1
+2024-03-30,HIGH,Heart Rate,Resting HR = 95 bpm (elevated for CHF patient),18,1
+2024-03-30,MEDIUM,Activity,Steps = 103 (severe functional decline),18,2
+2024-03-31,HIGH,Arrhythmia,Irregular HR events: 8/day (Afib burden elevated),19,1
+2024-03-31,HIGH,SpO2,SpO2 = 90% (below 92%),19,1
+2024-03-31,HIGH,Heart Rate,Resting HR = 97 bpm (elevated for CHF patient),19,1
+2024-03-31,MEDIUM,Activity,Steps = 55 (severe functional decline),19,2
+2024-04-01,HIGH,Heart Rate,Resting HR = 98 bpm (elevated for CHF patient),20,1
+2024-04-01,HIGH,Arrhythmia,Irregular HR events: 9/day (Afib burden elevated),20,1
+2024-04-01,HIGH,SpO2,SpO2 = 89% (below 92%),20,1
+2024-04-01,MEDIUM,Activity,Steps = 79 (severe functional decline),20,2
+2024-04-02,HIGH,Heart Rate,Resting HR = 94 bpm (elevated for CHF patient),21,1
+2024-04-02,HIGH,Arrhythmia,Irregular HR events: 4/day (Afib burden elevated),21,1
+2024-04-02,HIGH,SpO2,SpO2 = 91% (below 92%),21,1
+2024-04-02,MEDIUM,Activity,Steps = 54 (severe functional decline),21,2
+2024-04-03,HIGH,Pharmacy,Apixaban gap: patient self-reported running out before refill — anticoagulation lapse in Afib patient,22,1
+2024-04-03,HIGH,Arrhythmia,Irregular HR events: 3/day (Afib burden elevated),22,1
+2024-04-03,HIGH,Heart Rate,Resting HR = 97 bpm (elevated for CHF patient),22,1
+2024-04-03,HIGH,SpO2,SpO2 = 90% (below 92%),22,1
+2024-04-03,MEDIUM,Activity,Steps = 147 (severe functional decline),22,2
+2024-04-04,HIGH,SpO2,SpO2 = 91% (below 92%),23,1
+2024-04-05,HIGH,Arrhythmia,Irregular HR events: 7/day (Afib burden elevated),24,1
+2024-04-05,HIGH,Heart Rate,Resting HR = 90 bpm (elevated for CHF patient),24,1
+2024-04-06,HIGH,Arrhythmia,Irregular HR events: 6/day (Afib burden elevated),25,1
+2024-04-06,HIGH,Heart Rate,Resting HR = 90 bpm (elevated for CHF patient),25,1
+2024-04-06,HIGH,SpO2,SpO2 = 90% (below 92%),25,1
+2024-04-07,HIGH,Arrhythmia,Irregular HR events: 6/day (Afib burden elevated),26,1
+2024-04-07,HIGH,Heart Rate,Resting HR = 95 bpm (elevated for CHF patient),26,1
+2024-04-07,HIGH,SpO2,SpO2 = 90% (below 92%),26,1
+2024-04-08,HIGH,Arrhythmia,Irregular HR events: 4/day (Afib burden elevated),27,1
+2024-04-08,HIGH,Heart Rate,Resting HR = 94 bpm (elevated for CHF patient),27,1
+2024-04-08,HIGH,SpO2,SpO2 = 91% (below 92%),27,1
+2024-04-09,HIGH,Arrhythmia,Irregular HR events: 4/day (Afib burden elevated),28,1
+2024-04-09,HIGH,SpO2,SpO2 = 90% (below 92%),28,1
+2024-04-09,HIGH,Heart Rate,Resting HR = 96 bpm (elevated for CHF patient),28,1
+2024-04-09,MEDIUM,Activity,Steps = 385 (severe functional decline),28,2
