@@ -7,7 +7,7 @@
 
 ## Live Dashboards
 
-🔗 **[Problem 1 — Patient Risk Dashboard](https://atul-666.github.io/i3-de-assignment/problem-1/harmon_risk_dashboard.html)**
+🔗 **[Problem 1 — Patient Risk Dashboard](https://atul-666.github.io/i3-de-assignment/harmon_risk_dashboard.html)**
 🔗 **[Problem 2 — Drug Safety Pipeline](https://atul-666.github.io/i3-de-assignment/problem-2/index.html)**
 
 > Both open directly in browser — no installation needed.
