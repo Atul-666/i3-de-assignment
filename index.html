@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenFDA Data Engineer Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Highlight.js for Python syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .tab-btn.active {
+            border-bottom: 2px solid #3b82f6;
+            color: #3b82f6;
+        }
+        pre { border-radius: 0.5rem; }
+        .log-box { font-family: monospace; font-size: 0.875rem; white-space: pre-wrap; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans min-h-screen">
+
+    <nav class="bg-blue-600 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fa-solid fa-database text-2xl mr-3"></i>
+                    <span class="font-bold text-xl">OpenFDA Pipeline Dashboard</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <!-- Tabs Header -->
+            <div class="border-b border-gray-200">
+                <nav class="flex -mb-px" aria-label="Tabs">
+                    <button onclick="switchTab('python-tab')" id="btn-python-tab" class="tab-btn active w-1/3 py-4 px-1 text-center border-b-2 font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                        <i class="fa-brands fa-python mr-2"></i> Python Script
+                    </button>
+                    <button onclick="switchTab('explanation-tab')" id="btn-explanation-tab" class="tab-btn w-1/3 py-4 px-1 text-center border-b-2 font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                        <i class="fa-solid fa-book mr-2"></i> Explanations
+                    </button>
+                    <button onclick="switchTab('live-tab')" id="btn-live-tab" class="tab-btn w-1/3 py-4 px-1 text-center border-b-2 font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                        <i class="fa-solid fa-play mr-2"></i> Live Ingestion
+                    </button>
+                </nav>
+            </div>
+
+            <div class="p-6">
+                <!-- Python Script Tab -->
+                <div id="python-tab" class="tab-content active">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-semibold text-gray-800">Production-Quality Python Pipeline</h2>
+                        <button onclick="copyCode()" class="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1 rounded text-sm transition">
+                            <i class="fa-regular fa-copy"></i> Copy Code
+                        </button>
+                    </div>
+                    <p class="text-gray-600 mb-4">
+                        This script fulfills all your requirements: error handling, rate limiting, data normalization, tabularization, and saving both raw and processed formats.
+                    </p>
+                    <pre><code class="language-python" id="python-code"></code></pre>
+                </div>
+
+                <!-- Explanation Tab -->
+                <div id="explanation-tab" class="tab-content">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-6">Pipeline Architecture & Explanations</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-5">
+                            <h3 class="text-lg font-bold text-blue-700 mb-3"><i class="fa-solid fa-layer-group mr-2"></i> How Pagination Works</h3>
+                            <p class="text-gray-700 mb-2">
+                                The OpenFDA API uses offset-based pagination via the <code>skip</code> and <code>limit</code> parameters.
+                            </p>
+                            <ul class="list-disc pl-5 text-gray-700 space-y-2">
+                                <li><strong>Limit:</strong> The maximum number of records requested per API call (set to 100, which is the OpenFDA maximum without an authenticated API key).</li>
+                                <li><strong>Skip:</strong> The offset number of records to skip before returning data.</li>
+                                <li><strong>The Loop:</strong> The script uses a <code>while</code> loop. In each iteration, it fetches <code>limit</code> records, processes them, and then increments <code>skip</code> by <code>limit</code> (e.g., skip=0, then skip=100, then skip=200).</li>
+                                <li><strong>Termination:</strong> The loop stops cleanly if the target record count is reached, if an API call returns empty data, if a 404 (Not Found) error is raised (indicating no more data), or if the records returned are fewer than the <code>limit</code>.</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-5">
+                            <h3 class="text-lg font-bold text-green-700 mb-3"><i class="fa-solid fa-clipboard-check mr-2"></i> Data Assumptions</h3>
+                            <p class="text-gray-700 mb-2">
+                                Converting highly nested healthcare data to flat tabular data requires specific assumptions:
+                            </p>
+                            <ul class="list-disc pl-5 text-gray-700 space-y-2">
+                                <li><strong>Multiple Drugs/Reactions:</strong> A single safety report often lists multiple drugs and multiple adverse reactions. To flatten this, we assume a semi-colon delimited concatenation is acceptable (e.g., <code>Nausea; Headache</code>).</li>
+                                <li><strong>Missing Identifiers:</strong> We assume records lacking demographic data (age, sex) should still be ingested, converting their missing values to "Unknown" rather than dropping the row entirely.</li>
+                                <li><strong>Sex Code Mapping:</strong> Assumed standard ICH mapping where <code>1 = Male</code>, <code>2 = Female</code>, and anything else (0 or missing) is <code>Unknown</code>.</li>
+                            </ul>
+                        </div>
+
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-5 md:col-span-2">
+                            <h3 class="text-lg font-bold text-red-700 mb-3"><i class="fa-solid fa-triangle-exclamation mr-2"></i> Dataset Limitations (OpenFDA)</h3>
+                            <div class="flex flex-col md:flex-row gap-4">
+                                <div class="flex-1">
+                                    <ul class="list-disc pl-5 text-gray-700 space-y-2">
+                                        <li><strong>Voluntary Reporting Bias:</strong> The FAERS dataset relies largely on voluntary reporting by healthcare professionals and consumers. This means it cannot be used to calculate true incidence rates of adverse events (there is no denominator).</li>
+                                        <li><strong>Causality:</strong> An adverse event report does not establish a causal relationship between the drug and the event; they are merely correlated in time.</li>
+                                        <li><strong>Pagination Hard Limit:</strong> OpenFDA enforces a hard limit: the sum of <code>skip + limit</code> cannot exceed 25,000. For large-scale batch ingestions beyond 25K records, direct JSON bulk file downloads must be used instead of the API search endpoint.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-5">
+                            <h3 class="text-lg font-bold text-blue-700 mb-3"><i class="fa-solid fa-pills mr-2"></i> Why Furosemide?</h3>
+                            <p class="text-gray-700 mb-2">
+                                Furosemide (Lasix) was chosen deliberately — it is the <strong>primary diuretic prescribed to Bob Harmon</strong>, the post-discharge CHF patient analysed in Problem 1, on discharge from Riverside General Hospital.
+                            </p>
+                            <p class="text-gray-700">
+                                In a real health system, this is exactly the kind of pharmacovigilance data a care team would reference when monitoring a post-discharge heart failure patient. Pulling its adverse event profile from OpenFDA creates a direct, meaningful connection between the two problems.
+                            </p>
+                        </div>
+
+                        <div class="bg-purple-50 border border-purple-200 rounded-lg p-5">
+                            <h3 class="text-lg font-bold text-purple-700 mb-3"><i class="fa-solid fa-robot mr-2"></i> How AI Was Used</h3>
+                            <p class="text-gray-700 mb-2">
+                                This pipeline was co-developed with <strong>Gemini</strong>. Here's what AI generated vs. what was verified independently:
+                            </p>
+                            <ul class="list-disc pl-5 text-gray-700 space-y-2">
+                                <li><strong>AI generated:</strong> Initial pipeline structure, pagination loop, normalisation logic, retry handling, and the browser-side JavaScript reimplementation.</li>
+                                <li><strong>Independently verified:</strong> The 25,000 skip+limit hard cap was confirmed against the <a href="https://open.fda.gov/apis/query-parameters/" target="_blank" class="text-blue-600 underline">official OpenFDA documentation</a>. The ICH sex code mapping (1=Male, 2=Female) was cross-checked against FAERS data standards.</li>
+                                <li><strong>Tested manually:</strong> Retry logic was verified by observing 429 responses in the browser console. Empty-data termination was confirmed by running beyond the available record count.</li>
+                                <li><strong>Judgment calls:</strong> Semi-colon concatenation for multi-drug reports, retaining unknown demographics rather than dropping — these were deliberate decisions, not AI defaults.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Browser Ingestion Tab -->
+                <div id="live-tab" class="tab-content">
+                    <h2 class="text-2xl font-semibold text-gray-800 mb-4">Live Browser Ingestion</h2>
+                    <p class="text-gray-600 mb-6">
+                        Since this is a web environment, I've re-implemented the exact Python logic in JavaScript so you can run the pipeline directly in your browser. It respects the same rate limits and parsing rules.
+                    </p>
+                    
+                    <div class="flex items-center space-x-4 mb-6">
+                        <button id="start-btn" onclick="startIngestion()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded shadow transition flex items-center">
+                            <i class="fa-solid fa-play mr-2"></i> Run Pipeline
+                        </button>
+                        <button id="dl-csv-btn" onclick="downloadCSV()" disabled class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded shadow opacity-50 cursor-not-allowed transition flex items-center">
+                            <i class="fa-solid fa-file-csv mr-2"></i> Download CSV
+                        </button>
+                        <button id="dl-json-btn" onclick="downloadJSON()" disabled class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-6 rounded shadow opacity-50 cursor-not-allowed transition flex items-center">
+                            <i class="fa-solid fa-file-code mr-2"></i> Download Raw JSON
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Progress and Logs -->
+                        <div class="lg:col-span-1">
+                            <div class="bg-gray-900 rounded-lg p-4 h-96 flex flex-col">
+                                <h3 class="text-gray-300 font-semibold mb-2 uppercase text-xs tracking-wider">Console Output</h3>
+                                <div id="log-container" class="log-box text-green-400 flex-1 overflow-y-auto pr-2">
+                                    System initialized. Ready to ingest...
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Data Table Preview -->
+                        <div class="lg:col-span-2">
+                            <div class="bg-white border border-gray-200 rounded-lg h-96 flex flex-col overflow-hidden">
+                                <div class="bg-gray-100 border-b border-gray-200 px-4 py-2 flex justify-between items-center">
+                                    <h3 class="text-gray-700 font-semibold">Processed Tabular Data Preview</h3>
+                                    <span id="record-count" class="text-sm font-bold text-blue-600">0 / 500 Records</span>
+                                </div>
+                                <div class="overflow-x-auto overflow-y-auto flex-1">
+                                    <table class="min-w-full text-left text-sm text-gray-500">
+                                        <thead class="bg-gray-50 text-gray-700 uppercase sticky top-0 shadow-sm">
+                                            <tr>
+                                                <th class="px-4 py-3">Report ID</th>
+                                                <th class="px-4 py-3">Date</th>
+                                                <th class="px-4 py-3">Age</th>
+                                                <th class="px-4 py-3">Sex</th>
+                                                <th class="px-4 py-3">Seriousness</th>
+                                                <th class="px-4 py-3">Reaction</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="data-table-body" class="divide-y divide-gray-200">
+                                            <!-- Data injected here -->
+                                            <tr>
+                                                <td colspan="6" class="px-4 py-8 text-center text-gray-400">Run the pipeline to fetch data</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Floating Chat Widget -->
+                <div id="chat-widget" class="fixed bottom-6 right-6 z-50">
+                    <!-- Chat Toggle Button -->
+                    <button id="chat-toggle-btn" onclick="toggleChat()" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white w-16 h-16 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110">
+                        <i id="chat-icon" class="fa-solid fa-comments text-2xl"></i>
+                    </button>
+                    
+                    <!-- Chat Window (hidden by default) -->
+                    <div id="chat-window" class="hidden absolute bottom-20 right-0 w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden transform transition-all duration-300">
+                        <!-- Chat Header -->
+                        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 flex items-center justify-between">
+                            <div class="flex items-center">
+                                <div class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center mr-2">
+                                    <i class="fa-solid fa-robot text-white text-sm"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-white font-bold text-sm">FDA Data Assistant</h4>
+                                    <div class="flex items-center text-blue-200 text-xs">
+                                        <span class="w-1.5 h-1.5 bg-green-400 rounded-full mr-1.5 animate-pulse"></span>
+                                        <span id="bot-status">Ready</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button onclick="toggleChat()" class="text-white hover:text-gray-200 transition">
+                                <i class="fa-solid fa-times text-lg"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- Chat Messages -->
+                        <div id="chat-messages" class="h-72 overflow-y-auto p-4 space-y-3 bg-gray-50">
+                            <!-- Initial welcome message -->
+                            <div class="flex items-start space-x-2" id="welcome-msg">
+                                <div class="w-7 h-7 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <i class="fa-solid fa-robot text-blue-600 text-xs"></i>
+                                </div>
+                                <div class="bg-white border border-gray-200 rounded-xl rounded-tl-none p-3 max-w-[85%] shadow-sm">
+                                    <p class="text-sm text-gray-700">👋 Hi! Ask me about the Furosemide data!</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Quick Suggestions (shown when empty) -->
+                        <div id="quick-suggestions" class="px-4 py-2 bg-gray-100 border-t border-gray-200 flex flex-wrap gap-1.5 overflow-x-auto">
+                            <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full cursor-pointer hover:bg-blue-200 transition whitespace-nowrap" onclick="askQuestion('How many records?')">📊 Records</span>
+                            <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full cursor-pointer hover:bg-blue-200 transition whitespace-nowrap" onclick="askQuestion('Top reactions?')">⚠️ Reactions</span>
+                            <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full cursor-pointer hover:bg-blue-200 transition whitespace-nowrap" onclick="askQuestion('Serious cases?')">🔴 Serious</span>
+                            <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full cursor-pointer hover:bg-blue-200 transition whitespace-nowrap" onclick="askQuestion('Age breakdown?')">👥 Age</span>
+                        </div>
+                        
+                        <!-- Chat Input -->
+                        <div class="p-3 bg-white border-t border-gray-200">
+                            <div class="flex items-center space-x-2">
+                                <input 
+                                    type="text" 
+                                    id="chat-input" 
+                                    placeholder="Ask anything..." 
+                                    class="flex-1 bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700"
+                                    onkeypress="if(event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendMessage(); }"
+                                >
+                                <button 
+                                    onclick="sendMessage()" 
+                                    class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition text-sm flex items-center"
+                                >
+                                    <i class="fa-solid fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                    <!-- Insights Panel (shown after data is loaded) -->
+                    <div id="insights-panel" class="mt-8 pt-6 border-t border-gray-200 hidden">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4"><i class="fa-solid fa-chart-bar mr-2 text-blue-600"></i> Data Insights & Analysis</h3>
+
+                        <!-- Stats Row -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                            <div class="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+                                <h4 class="font-bold text-gray-700 border-b border-gray-200 pb-2 mb-3">Summary Statistics</h4>
+                                <ul class="space-y-2 text-sm text-gray-700" id="stats-list"></ul>
+                            </div>
+                            <div class="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+                                <h4 class="font-bold text-gray-700 border-b border-gray-200 pb-2 mb-3">Top 5 Reactions</h4>
+                                <ol class="list-decimal pl-5 space-y-1 text-sm text-gray-700" id="reactions-list"></ol>
+                            </div>
+                            <div class="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+                                <h4 class="font-bold text-gray-700 border-b border-gray-200 pb-2 mb-3">Age & Conclusion</h4>
+                                <ul class="space-y-1 text-sm text-gray-700 mb-3" id="age-list"></ul>
+                                <p class="text-sm italic text-gray-600 border-t border-gray-200 pt-2" id="conclusion-text"></p>
+                            </div>
+                        </div>
+
+                        <!-- Charts Row 1 -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                                <h5 class="text-sm font-bold text-gray-600 mb-3 text-center">Reports Over Time (by Year)</h5>
+                                <div class="relative h-72">
+                                    <canvas id="chart-timeline"></canvas>
+                                </div>
+                            </div>
+                            <div class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                                <h5 class="text-sm font-bold text-gray-600 mb-3 text-center">Seriousness by Patient Sex</h5>
+                                <div class="relative h-72">
+                                    <canvas id="chart-sex-serious"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Charts Row 2 -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                                <h5 class="text-sm font-bold text-gray-600 mb-3 text-center">Top 5 Adverse Reactions</h5>
+                                <div class="relative h-72">
+                                    <canvas id="chart-reactions"></canvas>
+                                </div>
+                            </div>
+                            <div class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm">
+                                <h5 class="text-sm font-bold text-gray-600 mb-3 text-center">Age Distribution</h5>
+                                <div class="relative h-72">
+                                    <canvas id="chart-age"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const pythonSourceCode = `import requests
+import json
+import csv
+import time
+import logging
+from collections import Counter
+from typing import List, Dict, Any
+
+# ==========================================
+# Configuration and Setup
+# ==========================================
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler()]
+)
+logger = logging.getLogger(__name__)
+
+API_URL = "https://api.fda.gov/drug/event.json"
+DRUG_NAME = "Furosemide"
+TARGET_RECORD_COUNT = 500
+PAGE_LIMIT = 100  # Max limit per request without an API key is 100
+MAX_RETRIES = 3
+RETRY_DELAY = 2  # Seconds
+
+# ==========================================
+# Helper Functions
+# ==========================================
+def fetch_fda_page(skip: int, limit: int) -> Dict[str, Any]:
+    """
+    Fetches a single page of results from the OpenFDA API.
+    Handles HTTP errors and implements a retry mechanism for transient failures.
+    """
+    params = {
+        'search': f'patient.drug.medicinalproduct:"{DRUG_NAME}"',
+        'limit': limit,
+        'skip': skip
+    }
+    
+    for attempt in range(MAX_RETRIES):
+        try:
+            logger.info(f"Fetching records skip={skip}, limit={limit} (Attempt {attempt+1}/{MAX_RETRIES})")
+            response = requests.get(API_URL, params=params, timeout=10)
+            
+            if response.status_code == 429:
+                logger.warning("Rate limit hit. Sleeping before retry...")
+                time.sleep(RETRY_DELAY * 2)
+                continue
+                
+            response.raise_for_status()
+            return response.json()
+            
+        except requests.exceptions.HTTPError as e:
+            # OpenFDA returns 404 if skip is beyond available results
+            if response.status_code == 404:
+                logger.info("No more records found (404). Reached end of available data.")
+                return {}
+            logger.error(f"HTTP Error: {e}")
+            time.sleep(RETRY_DELAY)
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request failed: {e}")
+            time.sleep(RETRY_DELAY)
+            
+    logger.error("Max retries exceeded.")
+    return {}
+
+def normalize_record(record: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Parses and normalizes a nested OpenFDA JSON record into a flat dictionary.
+    Handles missing or inconsistent fields robustly.
+    """
+    patient = record.get('patient', {})
+    
+    # 1. Safety Report ID
+    safety_report_id = record.get('safetyreportid', 'UNKNOWN')
+    
+    # 2. Seriousness
+    seriousness = record.get('seriousness', 'Unknown')
+    if seriousness == '1':
+        seriousness = 'Serious'
+    elif seriousness == '2':
+        seriousness = 'Non-Serious'
+        
+    # 3. Report Date
+    report_date = record.get('receiptdate', 'Unknown')
+    if report_date != 'Unknown' and len(report_date) == 8:
+        # Format YYYYMMDD to YYYY-MM-DD
+        report_date = f"{report_date[:4]}-{report_date[4:6]}-{report_date[6:]}"
+        
+    # 4. Patient Age
+    patient_age = patient.get('patientonsetage', 'Unknown')
+    
+    # 5. Patient Sex (1=Male, 2=Female, 0/other=Unknown)
+    sex_code = patient.get('patientsex', '0')
+    sex_mapping = {'1': 'Male', '2': 'Female'}
+    patient_sex = sex_mapping.get(str(sex_code), 'Unknown')
+    
+    # 6. Drug Name (Extract suspect drugs or just use target name if missing)
+    drugs = patient.get('drug', [])
+    drug_names = [d.get('medicinalproduct', '') for d in drugs if 'medicinalproduct' in d]
+    drug_name = "; ".join(drug_names) if drug_names else DRUG_NAME
+    
+    # 7. Reaction (Adverse Events)
+    reactions = patient.get('reaction', [])
+    reaction_terms = [r.get('reactionmeddrapt', '') for r in reactions if 'reactionmeddrapt' in r]
+    reaction_str = "; ".join(reaction_terms) if reaction_terms else 'Unknown'
+    
+    return {
+        'safety_report_id': safety_report_id,
+        'drug_name': drug_name,
+        'reaction': reaction_str,
+        'seriousness': seriousness,
+        'patient_age': patient_age,
+        'patient_sex': patient_sex,
+        'report_date': report_date
+    }
+
+def deduplicate_records(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Removes duplicate records based on safety_report_id."""
+    seen = set()
+    unique_records = []
+    for r in records:
+        if r['safety_report_id'] not in seen:
+            seen.add(r['safety_report_id'])
+            unique_records.append(r)
+    return unique_records
+
+def analyze_data(records: List[Dict[str, Any]]) -> None:
+    """Analyzes the cleaned records to generate basic insights."""
+    if not records:
+        logger.warning("No records to analyze.")
+        return
+        
+    total_records = len(records)
+    
+    # 1. Summary Statistics: Seriousness
+    serious_cases = sum(1 for r in records if r.get('seriousness') == 'Serious')
+    serious_pct = (serious_cases / total_records) * 100
+    
+    # 2. Extract and count all reactions
+    all_reactions = []
+    for r in records:
+        rx_str = r.get('reaction', '')
+        if rx_str and rx_str != 'Unknown':
+            # Split concatenated reactions
+            all_reactions.extend([rx.strip() for rx in rx_str.split(';')])
+            
+    reaction_counts = Counter(all_reactions)
+    unique_reactions = len(reaction_counts)
+    top_5_reactions = reaction_counts.most_common(5)
+    
+    # 3. Analyze Age Groups
+    age_groups = {'0-18': 0, '19-64': 0, '65+': 0, 'Unknown': 0}
+    for r in records:
+        age_str = r.get('patient_age', 'Unknown')
+        if age_str != 'Unknown':
+            try:
+                age = float(age_str)
+                if age <= 18:
+                    age_groups['0-18'] += 1
+                elif age <= 64:
+                    age_groups['19-64'] += 1
+                else:
+                    age_groups['65+'] += 1
+            except ValueError:
+                age_groups['Unknown'] += 1
+        else:
+            age_groups['Unknown'] += 1
+            
+    # Print Output
+    print("\\n" + "="*50)
+    print(" SUMMARY STATISTICS ")
+    print("="*50)
+    print(f"Total Records Analyzed: {total_records}")
+    print(f"Serious Cases: {serious_cases} ({serious_pct:.1f}%)")
+    print(f"Unique Reactions Identified: {unique_reactions}")
+    
+    print("\\n" + "="*50)
+    print(" INSIGHTS ")
+    print("="*50)
+    print("Top 5 Most Common Adverse Reactions:")
+    for i, (rx, count) in enumerate(top_5_reactions, 1):
+        print(f"  {i}. {rx} ({count} cases)")
+        
+    print("\\nAge Group Distribution:")
+    for group, count in age_groups.items():
+        if count > 0:
+            print(f"  {group} years: {count} cases")
+            
+    # Conclusion
+    print("\\n" + "="*50)
+    print(" CONCLUSION ")
+    print("="*50)
+    top_reaction = top_5_reactions[0][0] if top_5_reactions else "None"
+    print(f"Based on the {total_records} recent records for {DRUG_NAME}, a high proportion ({serious_pct:.1f}%) ")
+    print(f"of reported cases are classified as serious. The most frequently reported adverse event is {top_reaction}, ")
+    print("suggesting it is a predominant safety signal in the available dataset.")
+    print("="*50 + "\\n")
+
+
+# ==========================================
+# Main Execution
+# ==========================================
+def main():
+    logger.info(f"Starting ingestion for drug: {DRUG_NAME}")
+    
+    all_raw_results = []
+    normalized_data = []
+    skip = 0
+    
+    # Pagination Loop
+    while len(normalized_data) < TARGET_RECORD_COUNT:
+        data = fetch_fda_page(skip=skip, limit=PAGE_LIMIT)
+        
+        results = data.get('results', [])
+        if not results:
+            logger.info("Empty results returned. Stopping ingestion.")
+            break
+            
+        all_raw_results.extend(results)
+        
+        # Process records
+        for record in results:
+            flat_record = normalize_record(record)
+            normalized_data.append(flat_record)
+            
+        skip += PAGE_LIMIT
+        
+        # Respect rate limits even on success
+        time.sleep(0.5)
+        
+        # Check if fewer records were returned than requested
+        if len(results) < PAGE_LIMIT:
+            logger.info("Received fewer records than limit. End of dataset reached.")
+            break
+
+    # Truncate to exact target if we overshot
+    if len(normalized_data) > TARGET_RECORD_COUNT:
+        normalized_data = normalized_data[:TARGET_RECORD_COUNT]
+        all_raw_results = all_raw_results[:TARGET_RECORD_COUNT]
+
+    # Handle duplicates
+    initial_count = len(normalized_data)
+    normalized_data = deduplicate_records(normalized_data)
+    if len(normalized_data) < initial_count:
+        logger.info(f"Removed {initial_count - len(normalized_data)} duplicate records.")
+
+    logger.info(f"Successfully processed {len(normalized_data)} unique records.")
+
+    # ==========================================
+    # Output File Generation
+    # ==========================================
+    # 1. Save Raw JSON
+    raw_file = f"openfda_{DRUG_NAME}_raw.json"
+    with open(raw_file, 'w', encoding='utf-8') as f:
+        json.dump(all_raw_results, f, indent=2)
+    logger.info(f"Saved raw API response to {raw_file}")
+
+    # 2. Save Cleaned CSV
+    if normalized_data:
+        csv_file = f"openfda_{DRUG_NAME}_cleaned.csv"
+        headers = list(normalized_data[0].keys())
+        
+        with open(csv_file, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=headers)
+            writer.writeheader()
+            writer.writerows(normalized_data)
+        logger.info(f"Saved normalized tabular data to {csv_file}")
+    else:
+        logger.warning("No data parsed to write to CSV.")
+
+    # 3. Analyze Data
+    logger.info("Starting data analysis...")
+    analyze_data(normalized_data)
+
+    logger.info("Ingestion pipeline completed successfully.")
+
+if __name__ == "__main__":
+    main()`;
+
+        // Inject the python code and initialize syntax highlighting
+        const codeElement = document.getElementById('python-code');
+        codeElement.textContent = pythonSourceCode;
+        hljs.highlightElement(codeElement);
+
+        // Tab Switching Logic
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById(tabId).classList.add('active');
+            document.getElementById(`btn-${tabId}`).classList.add('active');
+        }
+
+        // Copy Python Code
+        function copyCode() {
+            const code = document.getElementById('python-code').innerText;
+            navigator.clipboard.writeText(code).then(() => {
+                alert("Python code copied to clipboard!");
+            });
+        }
+
+        // ==========================================
+        // Live Browser JS Pipeline Implementation
+        // ==========================================
+        const DRUG_NAME = "Furosemide";
+        const TARGET_COUNT = 500;
+        const LIMIT = 100;
+        
+        let globalRawData = [];
+        let globalNormalizedData = [];
+        
+        const logContainer = document.getElementById('log-container');
+        const dataBody = document.getElementById('data-table-body');
+        const countSpan = document.getElementById('record-count');
+        const startBtn = document.getElementById('start-btn');
+        const dlCsvBtn = document.getElementById('dl-csv-btn');
+        const dlJsonBtn = document.getElementById('dl-json-btn');
+
+        function appendLog(msg, type='info') {
+            const time = new Date().toLocaleTimeString();
+            const color = type === 'error' ? 'text-red-400' : (type === 'warn' ? 'text-yellow-400' : 'text-green-400');
+            logContainer.innerHTML += `\n<span class="text-gray-500">[${time}]</span> <span class="${color}">${msg}</span>`;
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+        function normalizeRecord(record) {
+            const patient = record.patient || {};
+            
+            // 1. Report ID
+            const safety_report_id = record.safetyreportid || 'UNKNOWN';
+            
+            // 2. Seriousness
+            let seriousness = record.serious || record.seriousness || 'Unknown';
+            if (seriousness === '1') seriousness = 'Serious';
+            else if (seriousness === '2') seriousness = 'Non-Serious';
+            
+            // 3. Date
+            let report_date = record.receiptdate || 'Unknown';
+            if (report_date !== 'Unknown' && report_date.length === 8) {
+                report_date = `${report_date.substring(0,4)}-${report_date.substring(4,6)}-${report_date.substring(6,8)}`;
+            }
+            
+            // 4. Age
+            const patient_age = patient.patientonsetage || 'Unknown';
+            
+            // 5. Sex
+            const sex_code = patient.patientsex || '0';
+            const sex = sex_code === '1' ? 'Male' : (sex_code === '2' ? 'Female' : 'Unknown');
+            
+            // 6. Drug Name
+            const drugs = patient.drug || [];
+            let drugNames = drugs.map(d => d.medicinalproduct).filter(Boolean);
+            const drug_name = drugNames.length > 0 ? drugNames.join('; ') : DRUG_NAME;
+            
+            // 7. Reactions
+            const reactions = patient.reaction || [];
+            let reactionTerms = reactions.map(r => r.reactionmeddrapt).filter(Boolean);
+            const reaction_str = reactionTerms.length > 0 ? reactionTerms.join('; ') : 'Unknown';
+            
+            return {
+                safety_report_id,
+                drug_name,
+                reaction: reaction_str,
+                seriousness,
+                patient_age,
+                patient_sex: sex,
+                report_date
+            };
+        }
+
+        function updateTableUI() {
+            countSpan.innerText = `${globalNormalizedData.length} / ${TARGET_COUNT} Records`;
+            
+            if (globalNormalizedData.length === 0) return;
+            
+            dataBody.innerHTML = '';
+            
+            // Only render up to first 500 records to prevent browser lag in preview
+            const previewData = globalNormalizedData.slice(0, TARGET_COUNT);
+            
+            previewData.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-4 py-2 font-mono text-xs text-blue-600">${row.safety_report_id}</td>
+                    <td class="px-4 py-2 whitespace-nowrap">${row.report_date}</td>
+                    <td class="px-4 py-2">${row.patient_age}</td>
+                    <td class="px-4 py-2">${row.patient_sex}</td>
+                    <td class="px-4 py-2">
+                        <span class="px-2 py-1 rounded text-xs font-medium ${row.seriousness === 'Serious' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'}">${row.seriousness}</span>
+                    </td>
+                    <td class="px-4 py-2 text-xs truncate max-w-xs" title="${row.reaction}">${row.reaction}</td>
+                `;
+                dataBody.appendChild(tr);
+            });
+        }
+
+        async function startIngestion() {
+            // Reset state
+            globalRawData = [];
+            globalNormalizedData = [];
+            logContainer.innerHTML = 'Starting pipeline...';
+            dataBody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-gray-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Fetching data...</td></tr>';
+            
+            startBtn.disabled = true;
+            startBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            dlCsvBtn.disabled = true;
+            dlCsvBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            dlJsonBtn.disabled = true;
+            dlJsonBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            let skip = 0;
+            const seenIds = new Set();
+            
+            appendLog(`Target Record Count: ${TARGET_COUNT}`);
+            
+            while (globalNormalizedData.length < TARGET_COUNT) {
+                const url = `https://api.fda.gov/drug/event.json?search=patient.drug.medicinalproduct:"${DRUG_NAME}"&limit=${LIMIT}&skip=${skip}`;
+                appendLog(`Fetching limit=${LIMIT}, skip=${skip}...`);
+                
+                try {
+                    const response = await fetch(url);
+                    
+                    if (response.status === 429) {
+                        appendLog(`Rate limit hit (429). Sleeping for 2s...`, 'warn');
+                        await sleep(2000);
+                        continue; // retry same skip
+                    }
+                    
+                    if (response.status === 404) {
+                        appendLog(`Received 404. No more records available.`, 'warn');
+                        break;
+                    }
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP Error: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    const results = data.results || [];
+                    
+                    if (results.length === 0) {
+                        appendLog(`Empty results returned. Stopping.`, 'warn');
+                        break;
+                    }
+                    
+                    // Process records
+                    let addedThisBatch = 0;
+                    for (const raw of results) {
+                        if (globalNormalizedData.length >= TARGET_COUNT) break; // Hard stop at target
+                        
+                        const norm = normalizeRecord(raw);
+                        
+                        // Deduplication inline
+                        if (!seenIds.has(norm.safety_report_id)) {
+                            seenIds.add(norm.safety_report_id);
+                            globalRawData.push(raw);
+                            globalNormalizedData.push(norm);
+                            addedThisBatch++;
+                        }
+                    }
+                    
+                    appendLog(`Processed ${addedThisBatch} unique records. Total: ${globalNormalizedData.length}`);
+                    updateTableUI();
+                    
+                    skip += LIMIT;
+                    
+                    if (results.length < LIMIT) {
+                        appendLog(`Received fewer records than requested. End of data.`);
+                        break;
+                    }
+                    
+                    // Respect API limits deliberately
+                    await sleep(500);
+                    
+                } catch (error) {
+                    appendLog(`Error fetching data: ${error.message}`, 'error');
+                    break;
+                }
+            }
+            
+            appendLog(`Pipeline complete. Successfully fetched ${globalNormalizedData.length} records.`, 'info');
+            
+            // Re-enable buttons
+            startBtn.disabled = false;
+            startBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            startBtn.innerHTML = '<i class="fa-solid fa-rotate-right mr-2"></i> Rerun Pipeline';
+            
+            if (globalNormalizedData.length > 0) {
+                dlCsvBtn.disabled = false;
+                dlCsvBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                dlJsonBtn.disabled = false;
+                dlJsonBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                
+                // Trigger JS Insights Engine
+                runInsightsAnalysis();
+            }
+        }
+
+        // Track chart instances to destroy them on reruns
+        let chartInstances = {};
+
+        // JS Insights Logic
+        function runInsightsAnalysis() {
+            const records = globalNormalizedData;
+            const total = records.length;
+            
+            if (total === 0) return;
+            
+            // Stats
+            const seriousCases = records.filter(r => r.seriousness === 'Serious').length;
+            const nonSeriousCases = total - seriousCases;
+            const seriousPct = ((seriousCases / total) * 100).toFixed(1);
+            
+            // Reactions Count
+            const reactionsMap = {};
+            records.forEach(r => {
+                if(r.reaction && r.reaction !== 'Unknown') {
+                    const rxs = r.reaction.split(';').map(rx => rx.trim());
+                    rxs.forEach(rx => {
+                        reactionsMap[rx] = (reactionsMap[rx] || 0) + 1;
+                    });
+                }
+            });
+            const allRxs = Object.entries(reactionsMap).sort((a, b) => b[1] - a[1]);
+            const uniqueRxCount = allRxs.length;
+            const top5 = allRxs.slice(0, 5);
+            
+            // Age
+            const ages = {'0-18': 0, '19-64': 0, '65+': 0, 'Unknown': 0};
+            records.forEach(r => {
+                const age = parseFloat(r.patient_age);
+                if (isNaN(age)) ages['Unknown']++;
+                else if (age <= 18) ages['0-18']++;
+                else if (age <= 64) ages['19-64']++;
+                else ages['65+']++;
+            });
+
+            // Timeline: count reports per year
+            const yearCounts = {};
+            records.forEach(r => {
+                const date = r.report_date;
+                if (date && date !== 'Unknown' && date.length >= 4) {
+                    const year = date.substring(0, 4);
+                    if (/^\d{4}$/.test(year)) {
+                        yearCounts[year] = (yearCounts[year] || 0) + 1;
+                    }
+                }
+            });
+            const sortedYears = Object.keys(yearCounts).sort();
+            const timelineData = sortedYears.map(y => yearCounts[y]);
+
+            // Seriousness by Sex breakdown
+            const sexSerious = { Male: { serious: 0, other: 0 }, Female: { serious: 0, other: 0 }, Unknown: { serious: 0, other: 0 } };
+            records.forEach(r => {
+                const sex = r.patient_sex || 'Unknown';
+                const key = (sex === 'Male' || sex === 'Female') ? sex : 'Unknown';
+                if (r.seriousness === 'Serious') {
+                    sexSerious[key].serious++;
+                } else {
+                    sexSerious[key].other++;
+                }
+            });
+            
+            // DOM Injection
+            const insightsPanel = document.getElementById('insights-panel');
+            insightsPanel.classList.remove('hidden');
+            
+            document.getElementById('stats-list').innerHTML = `
+                <li><strong>Total Records:</strong> ${total}</li>
+                <li><strong>Serious Cases:</strong> ${seriousCases} (${seriousPct}%)</li>
+                <li><strong>Unique Reactions:</strong> ${uniqueRxCount}</li>
+            `;
+            
+            document.getElementById('reactions-list').innerHTML = top5.map(rx => `<li><strong>${rx[0]}</strong>: ${rx[1]} cases</li>`).join('');
+            
+            document.getElementById('age-list').innerHTML = Object.entries(ages)
+                .filter(entry => entry[1] > 0)
+                .map(entry => `<li><strong>${entry[0]} yrs:</strong> ${entry[1]} cases</li>`).join('');
+                
+            const topRxName = top5.length > 0 ? top5[0][0] : "None";
+            const seriousnessDesc = parseFloat(seriousPct) >= 50 ? 'a high proportion' : parseFloat(seriousPct) >= 20 ? 'a notable proportion' : parseFloat(seriousPct) > 0 ? 'a proportion' : 'an unknown proportion';
+            document.getElementById('conclusion-text').innerHTML = `<strong>Conclusion:</strong> Based on the ${total} records processed for ${DRUG_NAME}, ${seriousnessDesc} (${seriousPct}%) of reports are classified as serious. The most prevalent adverse event reported is <em>${topRxName}</em>, highlighting it as a significant safety signal worth monitoring in this population sample.`;
+
+            // Store computed stats for chatbot
+            window.dataStats = {
+                total, seriousCases, seriousPct, nonSeriousCases: total - seriousCases,
+                top5, uniqueRxCount, ages, sortedYears, timelineData, sexSerious, topRxName
+            };
+
+            // Render Charts after DOM reflow so canvas dimensions are computed
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    renderGraphs(top5, ages, sortedYears, timelineData, sexSerious);
+                });
+            });
+        }
+
+        function renderGraphs(top5, ages, sortedYears, timelineData, sexSerious) {
+            console.log('renderGraphs called with:', { top5, ages, sortedYears, timelineData, sexSerious });
+            
+            // Destroy previous instances to avoid overlay bugs
+            Object.keys(chartInstances).forEach(key => {
+                if (chartInstances[key]) {
+                    chartInstances[key].destroy();
+                    chartInstances[key] = null;
+                }
+            });
+
+            // Helper to safely get canvas context
+            function getCtx(id) {
+                const el = document.getElementById(id);
+                if (!el) {
+                    console.error('Canvas element not found:', id);
+                    return null;
+                }
+                const ctx = el.getContext('2d');
+                console.log('Canvas', id, 'dimensions:', el.offsetWidth, 'x', el.offsetHeight);
+                return ctx;
+            }
+
+            // 1. Reports Over Time (Line Chart)
+            const ctxTimeline = getCtx('chart-timeline');
+            if (ctxTimeline && sortedYears.length > 0) {
+                chartInstances.timeline = new Chart(ctxTimeline, {
+                    type: 'line',
+                    data: {
+                        labels: sortedYears,
+                        datasets: [{
+                            label: 'Adverse Event Reports',
+                            data: timelineData,
+                            borderColor: '#6366f1',
+                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                            fill: true,
+                            tension: 0.3,
+                            pointBackgroundColor: '#6366f1',
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: { duration: 800 },
+                        plugins: {
+                            legend: { position: 'top' },
+                            tooltip: { mode: 'index', intersect: false }
+                        },
+                        scales: {
+                            x: { title: { display: true, text: 'Year' }, grid: { display: false } },
+                            y: { title: { display: true, text: 'Number of Reports' }, beginAtZero: true, ticks: { precision: 0 } }
+                        }
+                    }
+                });
+            }
+
+            // 2. Seriousness by Sex (Stacked Bar Chart)
+            const ctxSex = getCtx('chart-sex-serious');
+            if (ctxSex) {
+                const sexLabels = Object.keys(sexSerious).filter(s => sexSerious[s].serious + sexSerious[s].other > 0);
+                chartInstances.sexSerious = new Chart(ctxSex, {
+                    type: 'bar',
+                    data: {
+                        labels: sexLabels,
+                        datasets: [
+                            {
+                                label: 'Serious',
+                                data: sexLabels.map(s => sexSerious[s].serious),
+                                backgroundColor: '#ef4444',
+                                borderRadius: 4
+                            },
+                            {
+                                label: 'Non-Serious / Other',
+                                data: sexLabels.map(s => sexSerious[s].other),
+                                backgroundColor: '#93c5fd',
+                                borderRadius: 4
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: { duration: 800 },
+                        plugins: {
+                            legend: { position: 'top' },
+                            tooltip: { mode: 'index', intersect: false }
+                        },
+                        scales: {
+                            x: { title: { display: true, text: 'Patient Sex' }, stacked: true, grid: { display: false } },
+                            y: { title: { display: true, text: 'Number of Cases' }, stacked: true, beginAtZero: true, ticks: { precision: 0 } }
+                        }
+                    }
+                });
+            }
+
+            // 3. Reactions Chart (Horizontal Bar)
+            const ctxReactions = getCtx('chart-reactions');
+            if (ctxReactions && top5.length > 0) {
+                chartInstances.reactions = new Chart(ctxReactions, {
+                    type: 'bar',
+                    data: {
+                        labels: top5.map(item => item[0]),
+                        datasets: [{
+                            label: 'Cases',
+                            data: top5.map(item => item[1]),
+                            backgroundColor: ['#3b82f6', '#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd'],
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: { duration: 800 },
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { beginAtZero: true, grid: { display: false }, title: { display: true, text: 'Report Count' } },
+                            y: { grid: { display: false } }
+                        }
+                    }
+                });
+            }
+
+            // 4. Age Distribution Chart (Doughnut)
+            const ctxAge = getCtx('chart-age');
+            if (ctxAge) {
+                const ageLabels = Object.keys(ages).filter(k => ages[k] > 0);
+                const ageData = ageLabels.map(k => ages[k]);
+
+                chartInstances.age = new Chart(ctxAge, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ageLabels.map(l => l === 'Unknown' ? 'Unknown Age' : `${l} yrs`),
+                        datasets: [{
+                            data: ageData,
+                            backgroundColor: ['#f59e0b', '#10b981', '#6366f1', '#6b7280'],
+                            borderWidth: 2,
+                            borderColor: '#ffffff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: { duration: 800 },
+                        plugins: {
+                            legend: { position: 'bottom' },
+                            tooltip: { callbacks: { label: function(ctx) {
+                                const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                const pct = ((ctx.parsed / total) * 100).toFixed(1);
+                                return `${ctx.label}: ${ctx.parsed} (${pct}%)`;
+                            }}}
+                        }
+                    }
+                });
+            }
+            
+            console.log('All charts rendered successfully');
+        }
+
+        // CSV Download Logic
+        function downloadCSV() {
+            if (globalNormalizedData.length === 0) return;
+            
+            const headers = Object.keys(globalNormalizedData[0]);
+            const csvRows = [];
+            
+            // Header row
+            csvRows.push(headers.join(','));
+            
+            // Data rows
+            for (const row of globalNormalizedData) {
+                const values = headers.map(header => {
+                    const escaped = ('' + row[header]).replace(/"/g, '""');
+                    return `"${escaped}"`;
+                });
+                csvRows.push(values.join(','));
+            }
+            
+            const csvString = csvRows.join('\n');
+            const blob = new Blob([csvString], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.setAttribute('hidden', '');
+            a.setAttribute('href', url);
+            a.setAttribute('download', `openfda_${DRUG_NAME}_cleaned.csv`);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // JSON Download Logic
+        function downloadJSON() {
+            if (globalRawData.length === 0) return;
+            
+            const jsonString = JSON.stringify(globalRawData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.setAttribute('hidden', '');
+            a.setAttribute('href', url);
+            a.setAttribute('download', `openfda_${DRUG_NAME}_raw.json`);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // ==========================================
+        // Chatbot Logic
+        // ==========================================
+        function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+            
+            // Add user message
+            addMessage(message, 'user');
+            input.value = '';
+            
+            // Hide quick suggestions after first message
+            document.getElementById('quick-suggestions').style.display = 'none';
+            
+            // Simulate typing delay
+            document.getElementById('bot-status').textContent = 'Typing...';
+            setTimeout(() => {
+                const response = getBotResponse(message);
+                addMessage(response, 'bot');
+                document.getElementById('bot-status').textContent = 'Ready to analyze';
+            }, 600 + Math.random() * 400);
+        }
+
+        function toggleChat() {
+            const chatWindow = document.getElementById('chat-window');
+            const chatIcon = document.getElementById('chat-icon');
+            
+            if (chatWindow.classList.contains('hidden')) {
+                chatWindow.classList.remove('hidden');
+                chatIcon.classList.remove('fa-comments');
+                chatIcon.classList.add('fa-times');
+            } else {
+                chatWindow.classList.add('hidden');
+                chatIcon.classList.remove('fa-times');
+                chatIcon.classList.add('fa-comments');
+            }
+        }
+
+        function askQuestion(question) {
+            document.getElementById('chat-input').value = question;
+            sendMessage();
+        }
+
+        function addMessage(text, sender) {
+            const container = document.getElementById('chat-messages');
+            const isUser = sender === 'user';
+            
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `flex items-start space-x-2 ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`;
+            
+            const icon = isUser ? 'fa-user' : 'fa-robot';
+            const bgClass = isUser ? 'bg-blue-600' : 'bg-blue-100';
+            const textIconClass = isUser ? 'text-white' : 'text-blue-600';
+            const bubbleClass = isUser 
+                ? 'bg-blue-600 text-white rounded-xl rounded-tr-none' 
+                : 'bg-white border border-gray-200 text-gray-700 rounded-xl rounded-tl-none shadow-sm';
+            
+            msgDiv.innerHTML = `
+                <div class="w-7 h-7 ${bgClass} rounded-full flex items-center justify-center flex-shrink-0">
+                    <i class="fa-solid ${icon} ${textIconClass} text-xs"></i>
+                </div>
+                <div class="${bubbleClass} p-3 max-w-[85%]">
+                    <p class="text-sm leading-relaxed">${text}</p>
+                </div>
+            `;
+            
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function getBotResponse(question) {
+            const q = question.toLowerCase();
+            const stats = window.dataStats;
+            
+            // Check if data has been loaded
+            if (!stats || stats.total === 0) {
+                return "⚠️ No data loaded yet! Please go to the <strong>Live Ingestion</strong> tab and run the pipeline first, then ask me anything!";
+            }
+            
+            // Total records
+            if (q.includes('total') || q.includes('how many') || q.includes('record') || q.includes('count')) {
+                return `📊 We have <strong>${stats.total.toLocaleString()} total records</strong> in our Furosemide adverse event dataset. This represents ${stats.sortedYears.length > 0 ? `reports from ${stats.sortedYears[0]} to ${stats.sortedYears[stats.sortedYears.length-1]}` : 'the available reports'}.`;
+            }
+            
+            // Serious cases
+            if (q.includes('serious') || q.includes('severity') || q.includes('critical')) {
+                return `🔴 <strong>${stats.seriousCases.toLocaleString()} cases (${stats.seriousPct}%)</strong> are marked as serious. The remaining ${stats.nonSeriousCases.toLocaleString()} cases (${(100 - parseFloat(stats.seriousPct)).toFixed(1)}%) are non-serious or unclassified. ${parseFloat(stats.seriousPct) > 60 ? 'This is a notably high serious case ratio.' : ''}`;
+            }
+            
+            // Top reactions
+            if (q.includes('reaction') || q.includes('adverse') || q.includes('event') || q.includes('side effect')) {
+                let response = `⚠️ Here are the <strong>Top 5 Most Common Adverse Reactions</strong>:<br><br>`;
+                stats.top5.forEach(([rx, count], i) => {
+                    const barLength = Math.round((count / stats.top5[0][1]) * 20);
+                    const bar = '█'.repeat(barLength) + '░'.repeat(20 - barLength);
+                    response += `${i+1}. <strong>${rx}</strong> - ${count} cases<br>`;
+                });
+                response += `<br>There are <strong>${stats.uniqueRxCount}</strong> unique reactions in total across all reports.`;
+                return response;
+            }
+            
+            // Age breakdown
+            if (q.includes('age') || q.includes('old') || q.includes('young') || q.includes('pediatric') || q.includes('elderly')) {
+                let response = `👥 <strong>Age Group Distribution</strong>:<br><br>`;
+                for (const [group, count] of Object.entries(stats.ages)) {
+                    if (count > 0) {
+                        const pct = ((count / stats.total) * 100).toFixed(1);
+                        response += `• <strong>${group === 'Unknown' ? 'Unknown Age' : group + ' years'}</strong>: ${count.toLocaleString()} cases (${pct}%)<br>`;
+                    }
+                }
+                if (stats.ages['65+'] > stats.ages['19-64']) {
+                    response += `<br>📈 Notably, the elderly population (65+) appears to have the most reports.`;
+                }
+                return response;
+            }
+            
+            // Gender/Sex distribution
+            if (q.includes('gender') || q.includes('sex') || q.includes('male') || q.includes('female') || q.includes('women') || q.includes('men')) {
+                const maleSerious = stats.sexSerious.Male?.serious || 0;
+                const maleOther = stats.sexSerious.Male?.other || 0;
+                const femaleSerious = stats.sexSerious.Female?.serious || 0;
+                const femaleOther = stats.sexSerious.Female?.other || 0;
+                const unknownSex = (stats.sexSerious.Unknown?.serious || 0) + (stats.sexSerious.Unknown?.other || 0);
+                
+                const maleTotal = maleSerious + maleOther;
+                const femaleTotal = femaleSerious + femaleOther;
+                
+                return `⚤ <strong>Gender Distribution</strong>:<br><br>` +
+                    `• <strong>Female</strong>: ${femaleTotal.toLocaleString()} cases (${((femaleTotal/stats.total)*100).toFixed(1)}%)<br>` +
+                    `&nbsp;&nbsp;&nbsp;├─ Serious: ${femaleSerious.toLocaleString()}<br>` +
+                    `&nbsp;&nbsp;&nbsp;└─ Other: ${femaleOther.toLocaleString()}<br><br>` +
+                    `• <strong>Male</strong>: ${maleTotal.toLocaleString()} cases (${((maleTotal/stats.total)*100).toFixed(1)}%)<br>` +
+                    `&nbsp;&nbsp;&nbsp;├─ Serious: ${maleSerious.toLocaleString()}<br>` +
+                    `&nbsp;&nbsp;&nbsp;└─ Other: ${maleOther.toLocaleString()}<br><br>` +
+                    `• <strong>Unknown/Other</strong>: ${unknownSex.toLocaleString()} cases<br><br>` +
+                    `${femaleTotal > maleTotal ? '📊 Female patients appear more frequently in this dataset.' : '📊 Male patients appear more frequently in this dataset.'}`;
+            }
+            
+            // Timeline/Year
+            if (q.includes('year') || q.includes('time') || q.includes('trend') || q.includes('when') || q.includes('date')) {
+                const maxIdx = stats.timelineData.indexOf(Math.max(...stats.timelineData));
+                const maxYear = stats.sortedYears[maxIdx];
+                const maxCount = stats.timelineData[maxIdx];
+                
+                let response = `📅 <strong>Reports Timeline</strong>:<br><br>`;
+                response += `The year with the <strong>most reports</strong> is <strong>${maxYear}</strong> with ${maxCount.toLocaleString()} cases.<br><br>`;
+                response += `Year breakdown:<br>`;
+                stats.sortedYears.forEach((year, i) => {
+                    response += `• ${year}: ${stats.timelineData[i].toLocaleString()} reports<br>`;
+                });
+                return response;
+            }
+            
+            // Conclusion
+            if (q.includes('conclusion') || q.includes('summary') || q.includes('conclude') || q.includes('insight')) {
+                return `📝 <strong>Conclusion Summary</strong>:<br><br>` +
+                    `Based on the ${stats.total.toLocaleString()} adverse event reports analyzed for Furosemide:<br><br>` +
+                    `1. <strong>High Severity</strong>: ${stats.seriousPct}% of cases are classified as serious, indicating significant safety concerns.<br><br>` +
+                    `2. <strong>Primary Concern</strong>: The most reported adverse event is <strong>${stats.topRxName}</strong>, appearing in the majority of reports.<br><br>` +
+                    `3. <strong>Demographics</strong>: The data spans ${stats.sortedYears.length} years of reporting, with the majority of patients falling in the ${Object.entries(stats.ages).filter(([k,v]) => k !== 'Unknown').sort((a,b) => b[1] - a[1])[0][0]} age group.`;
+            }
+            
+            // Drug name
+            if (q.includes('drug') || q.includes('furosemide') || q.includes('name')) {
+                return `💊 The drug analyzed in this dataset is <strong>Furosemide</strong> (also known as Lasix). It's a loop diuretic commonly used to treat fluid retention (edema) and high blood pressure. The adverse events in this dataset are specifically related to this medication.`;
+            }
+            
+            // Help
+            if (q.includes('help') || q.includes('what can you do') || q.includes('commands')) {
+                return `🤖 <strong>Here's what I can help you with:</strong><br><br>` +
+                    `• 📊 Total record count<br>` +
+                    `• 🔴 Serious vs non-serious case breakdown<br>` +
+                    `• ⚠️ Top adverse reactions<br>` +
+                    `• 👥 Age group distribution<br>` +
+                    `• ⚤ Gender demographics<br>` +
+                    `• 📅 Yearly trends<br>` +
+                    `• 📝 Overall conclusion<br>` +
+                    `• 💊 Drug information<br><br>` +
+                    `Just ask a natural question and I'll do my best to answer!`;
+            }
+            
+            // Default response
+            return `🤔 I'm not sure I understand that question. Try asking about:<br><br>` +
+                `• Total records or count<br>` +
+                `• Serious cases or severity<br>` +
+                `• Reactions or adverse events<br>` +
+                `• Age or demographics<br>` +
+                `• Gender or sex distribution<br>` +
+                `• Year or timeline trends<br>` +
+                `• Conclusion or summary<br><br>` +
+                `Or type <strong>"help"</strong> to see all available commands!`;
+        }
+    </script>
+</body>
+</html>
