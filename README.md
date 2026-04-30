@@ -141,19 +141,21 @@ It also generates 4 charts automatically:
 
 ---
 
+
 ## Repository Structure
 
 ```
 i3-de-assignment/
-├── problem-1/
+├── Problem-1/
 │   ├── harmon_risk_dashboard.html
 │   ├── risk_pipeline.py
 │   ├── risk_alerts.csv
 │   ├── wearable_export_bob_harmon.csv
 │   ├── pharmacy_feed_harmon.json
 │   └── discharge_summary_harmon.pdf
-├── problem-2/
+├── Problem-2/
 │   ├── openfda_pipeline.py
+│   ├── openfda_Furosemide_cleaned.csv
 │   └── index.html
 └── README.md
 ```
