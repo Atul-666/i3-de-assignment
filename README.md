@@ -164,4 +164,4 @@ i3-de-assignment/
 
 ## Problem 3
 
-A short Loom video (≤2 mins) explaining what was built — addressed to a non-technical audience, no jargon — is included in the submission email.
+A short Loom video explaining what was built  is included in the submission email.
